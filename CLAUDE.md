@@ -207,6 +207,7 @@ Do NOT skip steps.
 
 ### Commits
 - One logical change per commit — no "misc changes" or "WIP" commits
+- For multi-layer features, use one commit per layer in this order: schema → services → pipeline → API → UI → infra → docs
 - Format: `type: short description` (lowercase, no period)
   - e.g. `feat: add opportunity classifier`, `fix: extractEmail uppercase mailto`
 - Valid types: `feat`, `fix`, `chore`, `test`, `refactor`, `docs`
