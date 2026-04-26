@@ -18,26 +18,75 @@ enum EmailStatus {
   FAILED
 }
 
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum CompanyStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
 model Company {
   id          String      @id @default(cuid())
   placeId     String      @unique
   name        String
-  address     String
+  address     String?
   industry    String
   location    String
-  website     String?
+  websiteUrl  String?
   hasWebsite  Boolean     @default(false)
   opportunity Opportunity @default(NONE)
   email       String?
-  phone       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @default(now()) @updatedAt
+  phoneNumber String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  lastEnrichedAt  DateTime?
 
-  emailLogs   EmailLog[]
+  emailLogs        EmailLog[]
+  pipelineEntries  PipelineCompany[]
 
   @@index([industry])
   @@index([location])
   @@index([opportunity])
+}
+
+model PipelineJob {
+  id        String    @id @default(cuid())
+  industry  String
+  location  String
+  radius    Int
+  status    JobStatus @default(PENDING)
+  createdAt DateTime  @default(now())
+  startedAt DateTime?
+  finishedAt DateTime?
+
+  companies PipelineCompany[]
+
+  @@unique([industry, location])
+}
+
+model PipelineCompany {
+  id        String        @id @default(cuid())
+  jobId     String
+  placeId   String
+  name      String
+  status    CompanyStatus @default(PENDING)
+  error     String?
+  companyId String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  job     PipelineJob @relation(fields: [jobId], references: [id])
+  company Company?    @relation(fields: [companyId], references: [id])
+
+  @@unique([jobId, placeId])
+  @@index([jobId, status])
 }
 
 model EmailLog {
