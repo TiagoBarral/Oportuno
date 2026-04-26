@@ -174,6 +174,7 @@ export default function Home() {
   const [sendResult, setSendResult] = useState<SendResult | null>(null);
 
   const [pipelineNote, setPipelineNote] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const [pipelineProgress, setPipelineProgress] = useState<{ done: number; total: number } | null>(null);
 
   // -------------------------------------------------------------------------
   // Data fetching
@@ -242,6 +243,7 @@ export default function Home() {
       return;
     }
     setPipelineNote(null);
+    setPipelineProgress(null);
     setSelectedCompany(null);
     setEmailDraft(null);
     setSendResult(null);
@@ -269,12 +271,31 @@ export default function Home() {
         setPipelineNote({ message, type: "error" });
         return;
       }
+      const jobData = await res.json() as { jobId: string; status: string; queued: boolean };
+
+      if (jobData.queued) {
+        await new Promise<void>((resolve, reject) => {
+          const interval = setInterval(async () => {
+            try {
+              const pollRes = await fetch(`/api/pipeline/${jobData.jobId}`);
+              if (!pollRes.ok) { clearInterval(interval); reject(new Error("Polling falhou.")); return; }
+              const poll = await pollRes.json() as { status: string; progress: { done: number; total: number } };
+              setPipelineProgress({ done: poll.progress.done, total: poll.progress.total });
+              if (poll.status === "DONE") { clearInterval(interval); resolve(); }
+              else if (poll.status === "FAILED") { clearInterval(interval); reject(new Error("Descoberta falhou.")); }
+            } catch (err) { clearInterval(interval); reject(err); }
+          }, 2000);
+        });
+      }
+
       await fetchCompanies(filters);
       setPipelineNote({ message: "Descoberta concluída.", type: "success" });
-    } catch {
-      setPipelineNote({ message: "Erro na descoberta.", type: "error" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro na descoberta.";
+      setPipelineNote({ message, type: "error" });
     } finally {
       setLoading((l) => ({ ...l, pipeline: false }));
+      setPipelineProgress(null);
     }
   }
 
@@ -393,12 +414,16 @@ export default function Home() {
               disabled={loading.pipeline}
               className="w-full rounded-xl bg-blue-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
             >
-              {loading.pipeline ? "A descobrir..." : (
-                <span className="flex items-center justify-center gap-2">
-                  <IconSearch className="w-4 h-4" />
-                  Descobrir Empresas
-                </span>
-              )}
+              {loading.pipeline
+                ? pipelineProgress !== null && pipelineProgress.total > 0
+                  ? `A processar: ${pipelineProgress.done}/${pipelineProgress.total}`
+                  : "A descobrir..."
+                : (
+                  <span className="flex items-center justify-center gap-2">
+                    <IconSearch className="w-4 h-4" />
+                    Descobrir Empresas
+                  </span>
+                )}
             </button>
             {pipelineNote !== null && (
               <p className={pipelineNote.type === "success" ? "text-xs text-green-600" : "text-xs text-red-500"}>
@@ -500,10 +525,11 @@ export default function Home() {
 
             {/* Empty */}
             {!loading.companies && companiesError === null && companies.length === 0 && (
-              <div className="py-10 text-center px-4">
-                <p className="text-sm font-medium text-gray-500">Nenhuma empresa encontrada</p>
-                <p className="mt-1 text-xs text-gray-400 leading-relaxed">
-                  Use a Descoberta para encontrar empresas, ou ajuste os filtros.
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                <IconSearch className="w-8 h-8 text-gray-300 mb-3" />
+                <p className="text-sm font-medium text-gray-700">Nenhuma empresa encontrada</p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Clique em &lsquo;Descobrir Empresas&rsquo; para iniciar a pesquisa
                 </p>
               </div>
             )}
@@ -596,27 +622,27 @@ export default function Home() {
                   {opportunityLabel(selectedCompany.opportunity)}
                 </span>
               </div>
-              {(selectedCompany.website !== null || selectedCompany.phone !== null || selectedCompany.email !== null) && (
+              {(selectedCompany.websiteUrl !== null || selectedCompany.phoneNumber !== null || selectedCompany.email !== null) && (
                 <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                  {selectedCompany.website !== null && (
+                  {selectedCompany.websiteUrl !== null && (
                     <a
                       href={
-                        selectedCompany.website.startsWith("http://") || selectedCompany.website.startsWith("https://")
-                          ? selectedCompany.website
-                          : `https://${selectedCompany.website}`
+                        selectedCompany.websiteUrl.startsWith("http://") || selectedCompany.websiteUrl.startsWith("https://")
+                          ? selectedCompany.websiteUrl
+                          : `https://${selectedCompany.websiteUrl}`
                       }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1.5 text-blue-600 hover:underline truncate max-w-xs"
                     >
                       <span className="text-xs select-none">🌐</span>
-                      <span className="truncate">{selectedCompany.website}</span>
+                      <span className="truncate">{selectedCompany.websiteUrl}</span>
                     </a>
                   )}
-                  {selectedCompany.phone !== null && (
+                  {selectedCompany.phoneNumber !== null && (
                     <span className="flex items-center gap-1.5 text-gray-600">
                       <span className="text-xs select-none">📞</span>
-                      {selectedCompany.phone}
+                      {selectedCompany.phoneNumber}
                     </span>
                   )}
                   {selectedCompany.email !== null && (
@@ -674,8 +700,8 @@ export default function Home() {
                         Website
                       </span>
                     </dt>
-                    <dd className={`text-sm font-medium mt-0.5 ${selectedCompany.website ? "text-green-600" : "text-gray-300"}`}>
-                      {selectedCompany.website ? "Tem website" : "Sem website"}
+                    <dd className={`text-sm font-medium mt-0.5 ${selectedCompany.websiteUrl ? "text-green-600" : "text-gray-300"}`}>
+                      {selectedCompany.websiteUrl ? "Tem website" : "Sem website"}
                     </dd>
                   </div>
                   <div>
@@ -706,7 +732,7 @@ export default function Home() {
                       </span>
                     </dt>
                     <dd className="text-sm font-medium text-gray-800 mt-0.5 truncate">
-                      {selectedCompany.website ?? "Sem website"}
+                      {selectedCompany.websiteUrl ?? "Sem website"}
                     </dd>
                   </div>
                   <div>

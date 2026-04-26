@@ -1,82 +1,87 @@
-import { prisma } from "@/lib/prisma";
 import { searchPlaces, getPlaceDetail } from "@/lib/services/placesService";
 import { classifyOpportunity } from "@/lib/services/opportunityService";
 import { fetchHtml, extractEmail } from "@/lib/services/scraperService";
+import { persistCompany } from "@/lib/services/companyService";
+import {
+  claimNextJob,
+  markJobDone,
+  markJobFailed,
+  seedPipelineCompanies,
+  claimPendingCompany,
+  markCompanyDone,
+  markCompanyFailed,
+} from "@/lib/services/pipelineJobService";
 
-export interface PipelineInput {
-  industry: string;
-  location: string;
-  radius: number; // meters
-}
-
-export interface PipelineResult {
+export async function runWorkerTick(): Promise<{
+  jobId: string | null;
   processed: number;
   created: number;
   updated: number;
-}
+} | null> {
+  const job = await claimNextJob();
+  if (!job) return null;
 
-export async function runPipeline(input: PipelineInput): Promise<PipelineResult> {
-  const { industry, location, radius } = input;
+  try {
+    const places = await searchPlaces(job.industry, job.location, job.radius);
+    await seedPipelineCompanies(
+      job.id,
+      places.map((p) => ({ placeId: p.placeId, name: p.name }))
+    );
 
-  const places = await searchPlaces(industry, location, radius);
+    let processed = 0;
+    let created = 0;
+    let updated = 0;
 
-  let processed = 0;
-  let created = 0;
-  let updated = 0;
+    let companyRow = await claimPendingCompany(job.id);
+    while (companyRow !== null) {
+      try {
+        const detail = await getPlaceDetail(companyRow.placeId);
 
-  for (const place of places) {
-    try {
-      const detail = await getPlaceDetail(place.placeId);
+        // Non-HTML responses return null; classifyOpportunity treats null html as WEAK_WEBSITE
+        const html =
+          detail.website !== null ? await fetchHtml(detail.website) : null;
 
-      // Non-HTML responses (PDFs, redirects to binary content) cause fetchHtml to
-      // return null. classifyOpportunity treats a null html value as WEAK_WEBSITE
-      // by design for MVP — we cannot inspect the site but it does exist.
-      const html = detail.website !== null ? await fetchHtml(detail.website) : null;
+        const opportunity = classifyOpportunity(detail.website, html);
+        const email = html !== null ? extractEmail(html) : null;
 
-      const opportunity = classifyOpportunity(detail.website, html);
-
-      const email = html !== null ? extractEmail(html) : null;
-
-      const result = await prisma.company.upsert({
-        where: { placeId: detail.placeId },
-        create: {
+        const company = await persistCompany({
           placeId: detail.placeId,
           name: detail.name,
-          address: detail.address,
-          industry,
-          location,
-          website: detail.website,
+          address: detail.address ?? null,
+          location: job.location,
+          industry: job.industry,
+          websiteUrl: detail.website ?? null,
           hasWebsite: detail.website !== null,
           opportunity,
           email,
-          phone: detail.phone,
-        },
-        update: {
-          name: detail.name,
-          address: detail.address,
-          website: detail.website,
-          hasWebsite: detail.website !== null,
-          opportunity,
-          email,
-          phone: detail.phone,
-        },
-      });
+          phoneNumber: detail.phone ?? null,
+        });
 
-      const wasCreated = result.createdAt.getTime() === result.updatedAt.getTime();
-      if (wasCreated) {
-        created += 1;
-      } else {
-        updated += 1;
+        await markCompanyDone(companyRow.id, company.id);
+
+        const wasCreated =
+          company.createdAt.getTime() === company.updatedAt.getTime();
+        if (wasCreated) created += 1;
+        else updated += 1;
+
+        processed += 1;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[pipelineService] Failed to process place ${companyRow.placeId} (${companyRow.name}):`,
+          err
+        );
+        await markCompanyFailed(companyRow.id, message);
       }
 
-      processed += 1;
-    } catch (err) {
-      console.error(
-        `[pipelineService] Failed to process place ${place.placeId} (${place.name}):`,
-        err
-      );
+      companyRow = await claimPendingCompany(job.id);
     }
-  }
 
-  return { processed, created, updated };
+    await markJobDone(job.id);
+    return { jobId: job.id, processed, created, updated };
+  } catch (err) {
+    console.error(`[pipelineService] Job ${job.id} failed:`, err);
+    await markJobFailed(job.id);
+    throw err;
+  }
 }

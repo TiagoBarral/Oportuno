@@ -9,6 +9,26 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`PipelineJob` / `PipelineCompany` models** (`prisma/schema.prisma`): two new models tracking async discovery jobs and their per-company progress. `PipelineJob` has `JobStatus` (PENDING / RUNNING / DONE / FAILED) and a `@@unique([industry, location])` constraint to prevent duplicate runs. `PipelineCompany` has `CompanyStatus` per place and a FK to `Company` once enriched.
+- **`pipelineJobService.ts`**: all job-lifecycle helpers — `createOrGetJob`, `claimNextJob` (with 10-minute stale-job recovery), `markJobDone/Failed`, `seedPipelineCompanies`, `claimPendingCompany`, `markCompanyDone/Failed`, `getJobProgress` (aggregated counts by status).
+- **`companyService.ts`**: `persistCompany` — extracted upsert logic from `pipelineService`; null-guards on update so existing `websiteUrl`, `email`, and `phoneNumber` are never overwritten with null; sets `lastEnrichedAt` on every write.
+- **`GET /api/pipeline/[jobId]`**: returns job status and per-status progress counts (`total`, `pending`, `processing`, `done`, `failed`).
+- **`GET /api/pipeline/worker`**: cron-safe worker endpoint that calls `runWorkerTick`; protected by `Authorization: Bearer <CRON_SECRET>` in all non-development environments; bypassed locally.
+- **`vercel.json`**: Vercel Cron schedule — `/api/pipeline/worker` fires every minute (`* * * * *`).
+- **`CRON_SECRET` env var**: added to `app/.env.example` with description.
+- **Pipeline progress UI** (`page.tsx`): `pipelineProgress` state tracks `{ done, total }` polled from `/api/pipeline/[jobId]` every 2 s while a job is running; the Descobrir button label switches from "A descobrir..." to "A processar: N/M" while total > 0.
+- **Empty state illustration** (`page.tsx`): company list empty state now shows a large `IconSearch` icon and Portuguese prompt ("Clique em 'Descobrir Empresas' para iniciar a pesquisa").
+
+### Changed
+
+- **`POST /api/pipeline/route.ts`**: no longer calls `runPipeline` synchronously; now calls `createOrGetJob` and returns `{ jobId, status, queued }` with HTTP 202 when a new job is created or 200 when the same job already exists.
+- **`pipelineService.ts`**: `runPipeline` removed; replaced with `runWorkerTick` which claims one PENDING job, seeds its company list, enriches each company sequentially, and marks the job DONE or FAILED.
+- **`Company` schema fields renamed**: `website` → `websiteUrl`, `phone` → `phoneNumber`; `address` made optional; `updatedAt` no longer has a static default; `lastEnrichedAt` added as nullable.
+- **`types.ts` `Company` interface**: updated to match renamed fields (`websiteUrl`, `phoneNumber`, `address: string | null`).
+- **`page.tsx` field references**: all `selectedCompany.website` → `selectedCompany.websiteUrl`, `selectedCompany.phone` → `selectedCompany.phoneNumber`.
+
 ---
 
 ## [0.3.0] — 2026-04-26
