@@ -280,8 +280,9 @@ Do NOT skip steps.
 ### Git hooks
 - Hooks live in `scripts/hooks/` (tracked). After cloning, run `sh scripts/setup-hooks.sh` to install both.
 - **pre-commit**: runs `bun tsc --noEmit` only — fast structural check on every commit
-- **pre-push**: runs `bun run test` — ensures tests pass before code leaves the machine
+- **pre-push**: runs `bun run test:local` (`vitest run --no-file-parallelism`) — disables parallel worker spawning to avoid a Bun-on-Windows crash; CI uses the standard `bun run test` and is unaffected
 - CI runs both as the final safety net on push and PR to `main`
+- Do not use `--no-verify` to bypass the pre-push hook — `test:local` is the fix for the Windows crash
 
 ### Private Data
 - `_private/` is gitignored

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "seed": "bun --bun prisma/seed.ts",
     "test": "vitest run",
+    "test:local": "vitest run --no-file-parallelism",
     "test:watch": "vitest"
   },
   "dependencies": {
