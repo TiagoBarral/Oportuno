@@ -39,6 +39,9 @@ Items to debate and plan before deploying to a real environment. Not prioritized
 - [ ] Scrub internal errors before API responses — stack traces must not reach the client in production
 - [ ] GDPR deletion endpoint — data retention policy and a mechanism to delete a company's data on request (legitimate interest basis requires this)
 
+**Pipeline**
+- [ ] Atomic job claiming — `claimNextJob` does find-then-update, not atomic; two simultaneous worker invocations (e.g. cron tick overlapping a manual trigger) could claim the same job. Fix with a raw `UPDATE ... WHERE status = 'PENDING' RETURNING *` or a Prisma transaction when concurrency becomes a real concern.
+
 **Reliability**
 - [ ] Environment variable validation at startup — app currently boots silently with missing keys and fails at runtime; should fail fast with a clear message
 - [ ] Prisma global client singleton — Next.js serverless can exhaust DB connections without the `globalThis` singleton pattern; verify current `lib/prisma.ts` handles this
