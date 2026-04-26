@@ -40,21 +40,6 @@ This project uses [Semantic Versioning](https://semver.org/).
   - `tests/scraperService.test.ts` — 14 cases for `extractEmail`: mailto-first extraction, plain-text fallback, case normalization, query-string stripping, first-of-multiple, subdomain handling, blocklist (example.com, yourdomain, retina suffixes), null cases, noisy HTML.
   - `tests/emailGenerator.test.ts` — 10 cases for `generateEmail` via `USE_MOCK_AI=true` mock path: shape validation, placeholder interpolation, no unreplaced `{{` tokens, opt-out line present, different output per opportunity type.
   - `tests/templateService.test.ts` — 13 cases across `getTemplateById`, `getDefaultTemplateForOpportunity`, `listTemplates`, `applyTemplate`: known/unknown IDs, per-type defaults, mutation safety (list copy, original template not mutated), multi-occurrence replacement.
-
-### Changed
-
-- **Repository structure**: Removed nested `app/.git` repository; `app/` is now tracked directly under the root repo. All `app/` files staged as part of the initial project commit.
-- **`.gitignore` consolidation**: Deleted `app/.gitignore`; all ignore rules merged into root `.gitignore`. Added `app/app/generated/` pattern to cover Prisma client output.
-
-### Fixed
-
-- **`GeneratedEmail` duplicate type**: Interface was defined in both `app/app/types.ts` and `app/lib/services/emailGenerator.ts`. Removed the duplicate from `emailGenerator.ts`; it now imports from `types.ts` and re-exports for downstream consumers.
-- **PostgreSQL not starting on boot**: Server was not registered as a Windows service after PostgreSQL 18 installation. Resolved by starting manually via `pg_ctl.exe`. Schema sync confirmed via `prisma db push` (shadow DB not required, avoiding CREATEDB privilege error with `migrate dev`).
-
----
-
-### Added
-
 - **SVG icon system**: 14 reusable inline Heroicons 2.x defined as typed const arrow functions at module level (`IconSearch`, `IconPin`, `IconBuilding`, `IconGlobe`, `IconTag`, `IconEnvelope`, `IconUsers`, `IconStar`, `IconSparkle`, `IconDocument`, `IconPaperPlane`, `IconArrowRight`, `IconTrendUp`, `IconTrendDown`). All accept an optional `className` prop for size/color overrides via Tailwind.
 - **Company avatars**: Initials circles (bg-blue-50, blue text) in the sidebar company card list. Extracted from the company name with `trim().split(/\s+/)` to handle names with multiple or leading/trailing spaces.
 - **Icon-prefixed inputs**: `IconSearch` on the industry input, `IconPin` on the location input — absolute-positioned spans inside relative wrappers with `pl-9` on the input.
@@ -63,9 +48,14 @@ This project uses [Semantic Versioning](https://semver.org/).
 - **DESEMPENHO section**: Five sparkline stat cards (Recharts `LineChart`) below the company detail — Empresas Encontradas, Boas Oportunidades, Sites Fracos, Sem Oportunidade, Emails Enviados. Each card uses four fixed-height zones (label, value, trend text, sparkline) for consistent alignment across all five cards. Includes trend arrow + percentage row.
 - **Right panel icon titles**: Each action card (Gerar Email, Rascunho, Enviar Email) has its section label prefixed with an icon.
 - **`recharts` package**: Added for sparkline charts.
+- **GitHub Actions CI**: `.github/workflows/ci.yml` — runs `bun run test` and `bunx tsc --noEmit` on push and PR to `main`.
+- **Pre-commit hook**: `scripts/hooks/pre-commit` blocks commits if tests fail or TypeScript reports errors. Install via `sh scripts/setup-hooks.sh`.
+- **`.env.example`**: Documents all required environment variables with empty values.
 
 ### Changed
 
+- **Repository structure**: Removed nested `app/.git` repository; `app/` is now tracked directly under the root repo. All `app/` files staged as part of the initial project commit.
+- **`.gitignore` consolidation**: Deleted `app/.gitignore`; all ignore rules merged into root `.gitignore`. Added `app/app/generated/` and `.env.example` exception.
 - **Right panel card padding**: Standardised to `p-5` across all three action cards (was `px-4 py-4`).
 - **Section label consistency**: All section labels now uniformly use `text-[11px] font-semibold uppercase tracking-wider text-gray-400`. Previously some used `text-xs tracking-wide`.
 - **Sidebar spacing**: Input gap in DESCOBERTA section and filter form increased from `gap-2` to `gap-3`.
@@ -76,8 +66,13 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **Avatar initials with multiple spaces**: Changed `.split(" ")` to `.trim().split(/\s+/)` to handle names with repeated or surrounding spaces.
-- **Dead `generateError` block in draft card**: `generateError` is only set when generation fails (emailDraft is null), making the block inside `{emailDraft !== null && ...}` unreachable. Removed it; the error now shows exclusively in the right panel.
+- **`extractEmail` case-insensitive mailto**: CSS selector `a[href^='mailto:']` was case-sensitive; uppercase `MAILTO:` hrefs returned null. Replaced with `.filter()` using `.toLowerCase().startsWith("mailto:")`.
+- **`GeneratedEmail` duplicate type**: Interface was defined in both `app/app/types.ts` and `app/lib/services/emailGenerator.ts`. Removed the duplicate from `emailGenerator.ts`; it now imports from `types.ts` and re-exports for downstream consumers.
+- **PostgreSQL not starting on boot**: Server was not registered as a Windows service after PostgreSQL 18 installation. Resolved by starting manually via `pg_ctl.exe`. Schema sync confirmed via `prisma db push`.
+- **`prisma.config.ts` removed**: Used `import { defineConfig } from "prisma/config"` which is a Prisma 6 API not available in Prisma 5. File deleted.
+- **TypeScript errors resolved**: Fixed `Cannot find namespace 'JSX'` in `page.tsx` (replaced `JSX.Element` with `ReactElement`), `Property 'where' does not exist` in `companies/route.ts` (typed as `Prisma.CompanyWhereInput`).
+- **Avatar initials with multiple spaces**: Changed `.split(" ")` to `.trim().split(/\s+/)`.
+- **Dead `generateError` block in draft card**: Removed unreachable error block inside `{emailDraft !== null && ...}`.
 
 ---
 
@@ -111,7 +106,7 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [0.1.0] - 2026-04-24
+## [0.1.0] — 2026-04-24
 
 ### Added
 

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pre-push: run tests before code leaves the machine.
+# Uses --no-threads to avoid Bun fork-worker crashes on Windows.
+
+cd app || exit 1
+
+echo "Running tests..."
+bun run test:local
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "Push blocked: tests failed. Fix failing tests before pushing."
+  exit 1
+fi
+
+echo "Tests passed."
+exit 0

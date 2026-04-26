@@ -22,6 +22,10 @@ jobs:
         working-directory: app
         run: bun install --frozen-lockfile
 
+      - name: Generate Prisma client
+        working-directory: app
+        run: bunx prisma generate
+
       - name: Run tests
         working-directory: app
         run: bun run test

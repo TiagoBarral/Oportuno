@@ -1,4 +1,4 @@
-# Project Context — LeadBridge MVP (Portugal)
+# Project Context — Oportuno MVP (Portugal)
 
 ## System Architecture
 
@@ -11,7 +11,7 @@
 
 ## Product Vision
 
-LeadBridge helps small businesses in Portugal:
+Oportuno helps small businesses in Portugal:
 
 1. Find companies that likely need their services
 2. Generate high-quality outreach emails
@@ -70,7 +70,7 @@ All paths relative to `/app`:
 
 The AI dev team lives at: `d:\PERSONAL\AIAssist\spark-ai-assist`
 
-This is a separate repo used as a personal AI dev team across all projects. It provides skills (interactive workflows), agents (specialist executors), and documentation. Do NOT recreate any of this tooling inside LeadBridge.
+This is a separate repo used as a personal AI dev team across all projects. It provides skills (interactive workflows), agents (specialist executors), and documentation. Do NOT recreate any of this tooling inside Oportuno.
 
 Full docs: `d:\PERSONAL\AIAssist\spark-ai-assist\.claude\docs\`
 Agent manifest: `d:\PERSONAL\AIAssist\spark-ai-assist\AGENTS.md`
@@ -239,13 +239,10 @@ Do NOT skip steps.
 8. Tag the commit: `git tag v0.3.0`
 9. Push tag: `git push origin v0.3.0`
 
-### Pre-commit verification gate
-Before every commit, both must pass:
-```bash
-bun run test        # 0 failing tests
-bun tsc --noEmit    # 0 type errors
-```
-Do not commit if either fails.
+### Verification gates
+- **Before every commit**: `bun tsc --noEmit` must pass (enforced by pre-commit hook)
+- **Before every push**: `bun run test` must pass (enforced by pre-push hook)
+- Do not bypass either gate.
 
 ### Environment variables
 - Never commit `.env` or `.env.local`
@@ -282,9 +279,11 @@ Do not commit if either fails.
 - Do not switch before that point; migration history adds overhead with no benefit on a local-only MVP
 
 ### Git hooks
-- The pre-commit hook lives in `scripts/hooks/pre-commit` (tracked) and `.git/hooks/pre-commit` (active)
-- After cloning, run `sh scripts/setup-hooks.sh` to install
-- The hook runs `bun run test` and `bun tsc --noEmit` and blocks the commit if either fails
+- Hooks live in `scripts/hooks/` (tracked). After cloning, run `sh scripts/setup-hooks.sh` to install both.
+- **pre-commit**: runs `bun tsc --noEmit` only — fast structural check on every commit
+- **pre-push**: runs `bun run test:local` (`vitest run --no-file-parallelism`) — disables parallel worker spawning to avoid a Bun-on-Windows crash; CI uses the standard `bun run test` and is unaffected
+- CI runs both as the final safety net on push and PR to `main`
+- Do not use `--no-verify` to bypass the pre-push hook — `test:local` is the fix for the Windows crash
 
 ### Private Data
 - `_private/` is gitignored
