@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Opportunity {
+  NO_WEBSITE
+  WEAK_WEBSITE
+  NONE
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+model Company {
+  id          String      @id @default(cuid())
+  placeId     String      @unique
+  name        String
+  address     String
+  industry    String
+  location    String
+  website     String?
+  hasWebsite  Boolean     @default(false)
+  opportunity Opportunity @default(NONE)
+  email       String?
+  phone       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @default(now()) @updatedAt
+
+  emailLogs   EmailLog[]
+
+  @@index([industry])
+  @@index([location])
+  @@index([opportunity])
+}
+
+model EmailLog {
+  id        String      @id @default(cuid())
+  companyId String
+  email     String
+  subject   String
+  body      String
+  status    EmailStatus
+  createdAt DateTime    @default(now())
+
+  company   Company     @relation(fields: [companyId], references: [id])
+}
