@@ -1,4 +1,4 @@
-# LeadBridge
+# Oportuno
 
 Lead generation and outreach tool for small businesses in Portugal.
 

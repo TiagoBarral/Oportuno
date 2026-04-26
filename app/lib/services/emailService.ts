@@ -23,7 +23,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   let resendError: { message: string } | null = null;
   try {
     const { error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_ADDRESS || "noreply@leadbridge.pt",
+      from: process.env.RESEND_FROM_ADDRESS || "noreply@oportuno.pt",
       to: [input.to],
       subject: input.subject,
       text: input.body,

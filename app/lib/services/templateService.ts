@@ -34,7 +34,7 @@ A {{opportunity}} representa uma oportunidade concreta de atrair mais negócio. 
 Estaria disponível para uma conversa breve sem compromisso?
 
 Com os melhores cumprimentos,
-LeadBridge
+Oportuno
 
 Se não pretende receber mais emails, basta responder com 'remover'.`,
   },
@@ -54,7 +54,7 @@ Com algumas melhorias direcionadas, o website pode tornar-se o melhor comercial 
 Posso partilhar algumas sugestões concretas, sem qualquer compromisso?
 
 Com os melhores cumprimentos,
-LeadBridge
+Oportuno
 
 Se não pretende receber mais emails, basta responder com 'remover'.`,
   },
@@ -74,7 +74,7 @@ Mais visibilidade significa mais contactos e mais negócio — sem depender de p
 Gostaria de lhe mostrar onde estão as principais oportunidades de melhoria?
 
 Com os melhores cumprimentos,
-LeadBridge
+Oportuno
 
 Se não pretende receber mais emails, basta responder com 'remover'.`,
   },

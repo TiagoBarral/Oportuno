@@ -1,4 +1,4 @@
-# Project Context — LeadBridge MVP (Portugal)
+# Project Context — Oportuno MVP (Portugal)
 
 ## System Architecture
 
@@ -11,7 +11,7 @@
 
 ## Product Vision
 
-LeadBridge helps small businesses in Portugal:
+Oportuno helps small businesses in Portugal:
 
 1. Find companies that likely need their services
 2. Generate high-quality outreach emails
@@ -70,7 +70,7 @@ All paths relative to `/app`:
 
 The AI dev team lives at: `d:\PERSONAL\AIAssist\spark-ai-assist`
 
-This is a separate repo used as a personal AI dev team across all projects. It provides skills (interactive workflows), agents (specialist executors), and documentation. Do NOT recreate any of this tooling inside LeadBridge.
+This is a separate repo used as a personal AI dev team across all projects. It provides skills (interactive workflows), agents (specialist executors), and documentation. Do NOT recreate any of this tooling inside Oportuno.
 
 Full docs: `d:\PERSONAL\AIAssist\spark-ai-assist\.claude\docs\`
 Agent manifest: `d:\PERSONAL\AIAssist\spark-ai-assist\AGENTS.md`

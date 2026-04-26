@@ -377,7 +377,7 @@ export default function Home() {
 
         {/* Brand header */}
         <div className="px-5 pt-5 pb-4 border-b border-gray-100 flex-shrink-0">
-          <h1 className="text-base font-bold text-gray-900 tracking-tight">LeadBridge</h1>
+          <h1 className="text-base font-bold text-gray-900 tracking-tight">Oportuno</h1>
           <p className="text-xs text-gray-400 mt-0.5">Aquisição de clientes</p>
         </div>
 

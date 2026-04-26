@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LeadBridge",
+  title: "Oportuno",
   description: "Prospeção de leads em Portugal",
 };
 
