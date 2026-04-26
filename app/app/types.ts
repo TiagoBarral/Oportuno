@@ -4,14 +4,14 @@ export interface Company {
   id: string;
   placeId: string;
   name: string;
-  address: string;
+  address: string | null;
   industry: string;
   location: string;
-  website: string | null;
+  websiteUrl: string | null;
   hasWebsite: boolean;
   opportunity: Opportunity;
   email: string | null;
-  phone: string | null;
+  phoneNumber: string | null;
   createdAt: string; // ISO string after JSON serialization
 }
 
