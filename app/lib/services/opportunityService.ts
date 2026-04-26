@@ -1,4 +1,4 @@
-import { Opportunity } from "@prisma/client";
+import type { Opportunity } from "@/app/types";
 import * as cheerio from "cheerio";
 
 /**
@@ -62,12 +62,12 @@ export function classifyOpportunity(
 ): Opportunity {
   // Rule 1 — no website at all.
   if (!website) {
-    return Opportunity.NO_WEBSITE;
+    return "NO_WEBSITE";
   }
 
   // Rule 2 — website URL exists but the site could not be fetched.
   if (html === null) {
-    return Opportunity.WEAK_WEBSITE;
+    return "WEAK_WEBSITE";
   }
 
   // Rule 3 — parse and check weak-content signals.
@@ -85,9 +85,9 @@ export function classifyOpportunity(
   ).length;
 
   if (weakSignalCount >= 2) {
-    return Opportunity.WEAK_WEBSITE;
+    return "WEAK_WEBSITE";
   }
 
   // Rule 4 — site looks substantive.
-  return Opportunity.NONE;
+  return "NONE";
 }
