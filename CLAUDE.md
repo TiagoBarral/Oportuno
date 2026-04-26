@@ -207,7 +207,7 @@ Do NOT skip steps.
 
 ### Commits
 - One logical change per commit — no "misc changes" or "WIP" commits
-- For multi-layer features, use one commit per layer in this order: schema → services → pipeline → API → UI → infra → docs
+- For feature branches that span multiple parts of the system, structure commits in dependency order (from lower-level building blocks to higher-level consumers). Example (current architecture): schema → services → domain/pipeline → API → UI → infra. The exact layers may evolve — the rule is to commit in the order components depend on each other.
 - Format: `type: short description` (lowercase, no period)
   - e.g. `feat: add opportunity classifier`, `fix: extractEmail uppercase mailto`
 - Valid types: `feat`, `fix`, `chore`, `test`, `refactor`, `docs`
