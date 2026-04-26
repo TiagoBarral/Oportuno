@@ -1,0 +1,15 @@
+#!/bin/sh
+# Pre-push: run tests before code leaves the machine.
+
+cd app || exit 1
+
+echo "Running tests..."
+bun run test
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "Push blocked: tests failed. Fix failing tests before pushing."
+  exit 1
+fi
+
+echo "Tests passed."
+exit 0

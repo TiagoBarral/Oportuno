@@ -8,4 +8,7 @@ SCRIPTS_DIR="scripts/hooks"
 cp "$SCRIPTS_DIR/pre-commit" "$HOOKS_DIR/pre-commit"
 chmod +x "$HOOKS_DIR/pre-commit"
 
-echo "Git hooks installed."
+cp "$SCRIPTS_DIR/pre-push" "$HOOKS_DIR/pre-push"
+chmod +x "$HOOKS_DIR/pre-push"
+
+echo "Git hooks installed (pre-commit: tsc, pre-push: tests)."
