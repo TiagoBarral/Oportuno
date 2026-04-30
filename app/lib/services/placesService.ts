@@ -1,3 +1,5 @@
+import { PORTUGUESE_CITIES, normaliseCityKey, canonicaliseMunicipality } from "../cities";
+
 export interface PlaceBasic {
   placeId: string;
   name: string;
@@ -7,6 +9,8 @@ export interface PlaceBasic {
 export interface PlaceDetail extends PlaceBasic {
   website: string | null;
   phone: string | null;
+  municipality: string | null;
+  rawMunicipality: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -23,6 +27,13 @@ interface TextSearchResponse {
   status: string;
   results: TextSearchResult[];
   error_message?: string;
+  next_page_token?: string;
+}
+
+interface AddressComponent {
+  long_name: string;
+  short_name: string;
+  types: string[];
 }
 
 interface PlaceDetailsResult {
@@ -31,6 +42,7 @@ interface PlaceDetailsResult {
   formatted_address: string;
   website?: string;
   formatted_phone_number?: string;
+  address_components?: AddressComponent[];
 }
 
 interface PlaceDetailsResponse {
@@ -40,47 +52,15 @@ interface PlaceDetailsResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Portuguese city → lat/lng lookup table
-// ---------------------------------------------------------------------------
-
-interface LatLng {
-  lat: number;
-  lng: number;
-}
-
-const PORTUGUESE_CITIES: Record<string, LatLng> = {
-  lisboa: { lat: 38.7169, lng: -9.1399 },
-  porto: { lat: 41.1579, lng: -8.6291 },
-  braga: { lat: 41.5454, lng: -8.4265 },
-  coimbra: { lat: 40.2033, lng: -8.4103 },
-  aveiro: { lat: 40.6405, lng: -8.6538 },
-  faro: { lat: 37.0193, lng: -7.9304 },
-  setubal: { lat: 38.5244, lng: -8.8882 },
-  guimaraes: { lat: 41.4425, lng: -8.2975 },
-  viseu: { lat: 40.6566, lng: -7.9122 },
-  leiria: { lat: 39.7436, lng: -8.8071 },
-};
-
-/**
- * Normalise a city name to the lookup key: lower-case, strip accents/diacritics.
- * e.g. "Setúbal" → "setubal", "Guimarães" → "guimaraes"
- */
-function normaliseCityKey(city: string): string {
-  return city
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
-}
-
-// ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
 
 /**
  * Search for businesses matching `industry` in `location` (a Portuguese city).
  *
- * Calls the Google Places Text Search (legacy REST) endpoint and returns at
- * most 20 results from the first page. Pagination is intentionally omitted.
+ * Calls the Google Places Text Search (legacy REST) endpoint and fetches up to
+ * 3 pages of results. Duplicate place IDs are deduplicated (first-page entry
+ * wins). Continuation pages omit location/radius as required by the API.
  */
 export async function searchPlaces(
   industry: string,
@@ -96,42 +76,102 @@ export async function searchPlaces(
   const cityKey = normaliseCityKey(location);
   const cityCoords = PORTUGUESE_CITIES[cityKey];
 
-  const params = new URLSearchParams({
+  // --- Page 1 ---
+  const page1Params = new URLSearchParams({
     query,
     key: apiKey,
+    region: "pt",
+    language: "pt",
   });
 
   if (cityCoords !== undefined) {
-    params.set("location", `${cityCoords.lat},${cityCoords.lng}`);
-    params.set("radius", String(radiusMeters));
+    page1Params.set("location", `${cityCoords.lat},${cityCoords.lng}`);
+    page1Params.set("radius", String(radiusMeters));
   }
 
-  const url = `https://maps.googleapis.com/maps/api/place/textsearch/json?${params.toString()}`;
+  const page1Url = `https://maps.googleapis.com/maps/api/place/textsearch/json?${page1Params.toString()}`;
+  const page1Response = await fetch(page1Url);
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
+  if (!page1Response.ok) {
     throw new Error(
-      `Google Places Text Search request failed with HTTP ${response.status}`
+      `Google Places Text Search request failed with HTTP ${page1Response.status}`
     );
   }
 
-  const data = (await response.json()) as TextSearchResponse;
+  const page1Data = (await page1Response.json()) as TextSearchResponse;
 
-  if (data.status === "ZERO_RESULTS") {
+  if (page1Data.status === "ZERO_RESULTS") {
     return [];
   }
 
-  if (data.status !== "OK") {
-    const detail = data.error_message ?? data.status;
+  if (page1Data.status !== "OK") {
+    const detail = page1Data.error_message ?? page1Data.status;
     throw new Error(`Google Places Text Search error: ${detail}`);
   }
 
-  return data.results.slice(0, 20).map((result) => ({
-    placeId: result.place_id,
-    name: result.name,
-    address: result.formatted_address,
-  }));
+  // Accumulate results into a Map keyed on placeId for deduplication.
+  const seen = new Map<string, PlaceBasic>();
+
+  for (const result of page1Data.results) {
+    if (!seen.has(result.place_id)) {
+      seen.set(result.place_id, {
+        placeId: result.place_id,
+        name: result.name,
+        address: result.formatted_address,
+      });
+    }
+  }
+
+  // --- Pages 2 and 3 (continuation) ---
+  let pageToken: string | undefined = page1Data.next_page_token;
+
+  for (let page = 2; page <= 3 && pageToken !== undefined; page++) {
+    // Google requires a short delay before a next_page_token becomes valid.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    const contParams = new URLSearchParams({
+      query,
+      key: apiKey,
+      region: "pt",
+      language: "pt",
+      pagetoken: pageToken,
+    });
+
+    const contUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?${contParams.toString()}`;
+    const contResponse = await fetch(contUrl);
+
+    if (!contResponse.ok) {
+      // Non-OK HTTP on a continuation page: stop, return what we have.
+      break;
+    }
+
+    const contData = (await contResponse.json()) as TextSearchResponse;
+
+    if (
+      contData.status === "ZERO_RESULTS" ||
+      contData.status === "INVALID_REQUEST"
+    ) {
+      break;
+    }
+
+    if (contData.status !== "OK") {
+      break;
+    }
+
+    for (const result of contData.results) {
+      if (!seen.has(result.place_id)) {
+        seen.set(result.place_id, {
+          placeId: result.place_id,
+          name: result.name,
+          address: result.formatted_address,
+        });
+      }
+    }
+
+    pageToken = contData.next_page_token;
+  }
+
+  return Array.from(seen.values());
 }
 
 /**
@@ -148,7 +188,7 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetail> {
 
   const params = new URLSearchParams({
     place_id: placeId,
-    fields: "place_id,name,formatted_address,website,formatted_phone_number",
+    fields: "place_id,name,formatted_address,website,formatted_phone_number,address_components",
     key: apiKey,
   });
 
@@ -171,11 +211,21 @@ export async function getPlaceDetail(placeId: string): Promise<PlaceDetail> {
 
   const r = data.result;
 
+  const rawMunicipality =
+    r.address_components?.find((c) =>
+      c.types.includes("administrative_area_level_2"),
+    )?.long_name ?? null;
+
+  const municipality =
+    rawMunicipality !== null ? canonicaliseMunicipality(rawMunicipality) : null;
+
   return {
     placeId: r.place_id,
     name: r.name,
     address: r.formatted_address,
     website: r.website ?? null,
     phone: r.formatted_phone_number ?? null,
+    municipality,
+    rawMunicipality,
   };
 }

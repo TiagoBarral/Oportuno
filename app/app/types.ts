@@ -7,6 +7,9 @@ export interface Company {
   address: string | null;
   industry: string;
   location: string;
+  category: string;
+  specialty: string;
+  municipality: string | null;
   websiteUrl: string | null;
   hasWebsite: boolean;
   opportunity: Opportunity;
@@ -20,9 +23,33 @@ export interface GeneratedEmail {
   body: string;
 }
 
-export interface Filters {
+export interface NetworkingFilters {
   industry: string;
-  location: string;
+  municipality: string;
+  category: string;
+  specialty: string;
   opportunity: Opportunity | "";
   hasWebsite: "true" | "false" | "";
+  hasEmail: "true" | "false" | "";
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface RecentSearch {
+  id: string;
+  industry: string;
+  location: string;
+  status: "PENDING" | "RUNNING" | "DONE" | "FAILED";
+  companyCount: number;
+  createdAt: string;
+}
+
+export interface StatsResponse {
+  totalCompanies: number;
+  recentSearches: RecentSearch[];
 }
