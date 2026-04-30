@@ -12,7 +12,9 @@ export async function GET(request: Request): Promise<NextResponse> {
   }
 
   try {
-    const result = await runWorkerTick();
+    const { searchParams } = new URL(request.url);
+    const targetJobId = searchParams.get("jobId") ?? undefined;
+    const result = await runWorkerTick(targetJobId);
 
     if (result === null) {
       return NextResponse.json({ message: "No pending jobs" }, { status: 200 });

@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
-import { createOrGetJob } from "@/lib/services/pipelineJobService";
+import { NextResponse, after } from "next/server";
+import { createOrGetJob, resetJobToPending } from "@/lib/services/pipelineJobService";
+import { runWorkerTick } from "@/lib/services/pipelineService";
 
 export async function POST(request: Request): Promise<NextResponse> {
   let body: unknown;
@@ -44,8 +45,22 @@ export async function POST(request: Request): Promise<NextResponse> {
       radius: Math.round(radius),
     });
 
+    let workerTriggered = false;
+    if (process.env.NODE_ENV === "development" && job.status !== "RUNNING") {
+      // No external cron in local dev — always re-run (PENDING, FAILED, or DONE)
+      // so repeated searches pick up fresh results. Never interrupt a RUNNING worker.
+      // after() keeps execution alive until the callback completes after the response is sent.
+      await resetJobToPending(job.id);
+      after(async () => {
+        await runWorkerTick(job.id).catch((err: unknown) => {
+          console.warn("[dev] worker error:", err);
+        });
+      });
+      workerTriggered = true;
+    }
+
     return NextResponse.json(
-      { jobId: job.id, status: job.status, queued: created },
+      { jobId: job.id, status: job.status, queued: created || workerTriggered },
       { status: created ? 202 : 200 }
     );
   } catch (err) {
