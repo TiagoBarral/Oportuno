@@ -53,16 +53,14 @@ function NetworkingContent() {
 
   const categoryParam    = searchParams.get("category");
   const municipalityParam = searchParams.get("municipality");
-  const industryParam    = searchParams.get("industry");
 
   const initialFilters: Partial<NetworkingFilters> = {};
   if (categoryParam)    initialFilters.category    = categoryParam;
   if (municipalityParam) initialFilters.municipality = municipalityParam;
-  if (industryParam)    initialFilters.industry    = industryParam;
 
   // Stable key derived from URL params — forces NetworkingView remount when
   // the user navigates back and selects a different recent search.
-  const viewKey = `${categoryParam ?? ""}-${municipalityParam ?? ""}-${industryParam ?? ""}`;
+  const viewKey = `${categoryParam ?? ""}-${municipalityParam ?? ""}`;
 
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [emailDraft, setEmailDraft] = useState<EmailDraft | null>(null);

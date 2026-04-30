@@ -20,7 +20,7 @@ export default function AppShell({ children }: AppShellProps) {
     <div className="flex flex-col h-screen bg-gray-100 overflow-hidden">
       <header className="flex-shrink-0 bg-white border-b border-gray-200 px-6 flex items-center h-14">
         {/* Left: logo + wordmark */}
-        <div className="flex-shrink-0 mr-8 flex items-center gap-2.5">
+        <Link href="/" className="flex-shrink-0 mr-8 flex items-center gap-2.5 hover:opacity-80 transition-opacity">
           <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
             <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -28,7 +28,7 @@ export default function AppShell({ children }: AppShellProps) {
             </svg>
           </div>
           <span className="text-base font-bold text-gray-900 tracking-tight">Oportuno</span>
-        </div>
+        </Link>
 
         {/* Center: nav */}
         <nav className="flex flex-1 items-center justify-center gap-1">

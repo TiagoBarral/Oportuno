@@ -24,7 +24,6 @@ export interface GeneratedEmail {
 }
 
 export interface NetworkingFilters {
-  industry: string;
   municipality: string;
   category: string;
   specialty: string;

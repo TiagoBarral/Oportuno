@@ -32,7 +32,6 @@ function companyInitials(name: string): string {
 }
 
 const EMPTY_FILTERS: NetworkingFilters = {
-  industry: "",
   municipality: "",
   category: "",
   specialty: "",
@@ -96,7 +95,6 @@ export default function NetworkingView({
       const params = new URLSearchParams();
       params.set("page", String(currentPage));
       params.set("pageSize", String(pageSize));
-      if (currentFilters.industry)    params.set("industry", currentFilters.industry);
       if (currentFilters.municipality) params.set("municipality", currentFilters.municipality);
       if (currentFilters.category)    params.set("category", currentFilters.category);
       if (currentFilters.specialty)   params.set("specialty", currentFilters.specialty);
@@ -252,14 +250,6 @@ export default function NetworkingView({
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3">
           <form onSubmit={handleFilter}>
             <div className="flex flex-wrap items-center gap-2">
-              <input
-                type="text"
-                name="industry"
-                placeholder="Setor"
-                value={filters.industry}
-                onChange={handleFilterChange}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors w-36"
-              />
               <select
                 name="municipality"
                 value={filters.municipality}
