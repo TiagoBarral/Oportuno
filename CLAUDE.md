@@ -83,7 +83,7 @@ Agent manifest: `d:\PERSONAL\AIAssist\spark-ai-assist\AGENTS.md`
 |---|---|
 | `/development` | Starting any new feature. 5-phase flow: definition → brainstorm → plan → tasks → execute. Has 3 human checkpoints — nothing runs until the task list is approved. **Always use this for new features.** |
 | `/bugfix` | Investigating any bug. Same 5-phase structure adapted for root cause analysis and targeted fix. |
-| `/ship` | When all tasks and quality gates are done. Generates commit message, PR title, and description. Read-only — does not commit or push. |
+| `/ship` | Not used in this project — CHANGELOG, commits, and PR follow the rules in this file directly. |
 | `/test-case-design` | Generating test cases from a spec, user story, or acceptance criteria. Covers plain text, CSV, and Gherkin. |
 
 **Rule: never start implementing a feature without first running `/development`. Never fix a bug without first running `/bugfix`.**
@@ -131,7 +131,7 @@ SPECIALIST LAYER agents (scoped execution, report back to orchestrator)
 |---|---|
 | New feature | `/development` |
 | Bug to investigate | `/bugfix` |
-| Ready to commit and PR | `/ship` |
+| Ready to commit and PR | Follow git workflow in this file directly |
 | Writing test cases from a spec | `/test-case-design` |
 | Narrowly scoped, single-domain task | Call the relevant specialist agent directly |
 | Multi-specialist task outside a feature/bug | Invoke `tech-lead` directly with a specific brief |
@@ -214,6 +214,7 @@ Do NOT skip steps.
 
 ### Pull Requests
 - Every branch merges into `main` via a PR — no direct merges
+- **Before opening the PR: add entries to `[Unreleased]` in `CHANGELOG.md` on the feature branch.** This is part of the branch work, not a release-time concern. The PR diff should show both the code change and what it means.
 - Use the PR template at `.github/pull_request_template.md`:
   - Fill in: what it does, type of change, files changed, how to test
   - Complete the checklist before merging (app runs, no secrets, CHANGELOG updated)
@@ -233,7 +234,7 @@ Do NOT skip steps.
 2. `bun run test` passes — 0 failures
 3. `bun tsc --noEmit` passes — 0 errors
 4. App runs locally without errors (`bun dev`)
-5. `[Unreleased]` in `CHANGELOG.md` renamed to version + date: `## [0.3.0] — YYYY-MM-DD`
+5. Rename `[Unreleased]` in `CHANGELOG.md` to version + date: `## [0.3.0] — YYYY-MM-DD` (entries should already exist from each PR)
 6. Fresh empty `## [Unreleased]` section opened above it
 7. Commit: `chore: release v0.3.0`
 8. Tag the commit: `git tag v0.3.0`
@@ -325,6 +326,10 @@ Specific and actionable. What would change if starting over with today's knowled
 - Write in first person ("I built", "I learned", not "the developer")
 - Human and personal — this is a reflection, not a changelog
 - Honest about failures and confusion, not just wins
+- Document every meaningful hurdle in a human way — capture the confusion, the misleading evidence, and why it took time
+- When an issue is solved, add a resolution reflection: what finally proved the root cause, and what the false leads were
+- Record the full arc: symptom → false leads → final proof
+- Prefer a coherent story over a dry technical summary
 - No bullet-point dumps — write in prose
 - Avoid technical jargon unless explaining it is the point
 - Do NOT mirror the CHANGELOG — the journal is about the experience, not the feature list

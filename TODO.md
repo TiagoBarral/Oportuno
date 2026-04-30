@@ -41,6 +41,8 @@ Items to debate and plan before deploying to a real environment. Not prioritized
 
 **Pipeline**
 - [ ] Atomic job claiming — `claimNextJob` does find-then-update, not atomic; two simultaneous worker invocations (e.g. cron tick overlapping a manual trigger) could claim the same job. Fix with a raw `UPDATE ... WHERE status = 'PENDING' RETURNING *` or a Prisma transaction when concurrency becomes a real concern.
+- [ ] Polling timeout ceiling — `handleDiscover` polls indefinitely; if the worker dies without writing DONE or FAILED the spinner locks forever. Add a max poll count (~150 × 2s = 5 min) and surface a timeout error to the user.
+- [ ] Polling condition — polling only starts when a new job is created (`queued === true`); a returning user whose existing job is PENDING or FAILED gets no feedback. Change the condition to `jobData.status !== "DONE"`.
 
 **Reliability**
 - [ ] Environment variable validation at startup — app currently boots silently with missing keys and fails at runtime; should fail fast with a clear message
@@ -54,6 +56,9 @@ Items to debate and plan before deploying to a real environment. Not prioritized
 **Code Quality**
 - [ ] Prettier — add formatter so code style doesn't drift; integrate with ESLint and pre-commit hook
 - [ ] Stricter ESLint rules — enable `no-console`, `no-unused-vars`, `@typescript-eslint/no-explicit-any`
+- [ ] `cities.ts` parallel arrays — `PORTUGUESE_CITIES` and `CITY_NAMES` must be kept in sync manually; refactor to a single `CITIES` array of `{ key, display, coords }` and derive both from it.
+- [ ] `placesService.ts` continuation params — continuation requests include `query`/`region`/`language` alongside `pagetoken`; the API ignores them but it's misleading. Remove for clarity.
+- [ ] `placesService.ts` magic number — extract `2000` (Places API next-page delay) to a named constant `NEXT_PAGE_DELAY_MS`.
 
 **Deployment**
 - [ ] Decide and document deployment target — Railway, Vercel, or a managed PostgreSQL host; decision affects connection pooling, env var management, and cold starts
