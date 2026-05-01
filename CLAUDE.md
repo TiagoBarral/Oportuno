@@ -302,47 +302,52 @@ Do NOT skip steps.
 
 ### Journal (`_private/JOURNAL.md`)
 
-**Rule: whenever CHANGELOG.md is updated, always update the journal in the same action — no need to ask.**
+The journal is a private, local-only development log. It must never be committed or pushed. It documents the human story of the project: debates, plans, lessons learned, hurdles, confusing bugs, tradeoffs, decisions, and moments where something finally clicks.
 
-The journal is a personal development log written for portfolio use. Each entry feeds the project reflection format on the portfolio page.
+**When to update** — create or update an entry whenever:
+- We have a meaningful debate or planning discussion
+- We make an important product or technical decision
+- We hit a confusing bug or blocker
+- We solve a significant issue
+- We learn something that should influence future work
+- We update CHANGELOG.md
+- We complete meaningful work that changes app behavior, UX, routing, storage, schema, deployment, or project workflow
 
-**When to update:** whenever the user asks, or after a session with meaningful work.
-
-**Entry format — one section per working session:**
+**Entry format:**
 
 ```
-## [Date] — [Short title describing the session]
+## Month Day, Year — Short Human Title
 
-### What I built
-One or two paragraphs. Concrete, specific. What exists now that didn't before.
+### What I built / changed
+Describe the actual work in plain language.
 
-### What I was trying to learn
-What skill, concept, or problem drove this session beyond just shipping the feature.
+### What I was trying to learn / decide
+Explain the intention, debate, or question behind the work.
 
 ### What went wrong
-Honest account of failures, dead ends, and wasted time. Don't sanitize.
+Describe bugs, confusion, false assumptions, or friction.
 
 ### Biggest challenge / bug
-Single hardest thing. One focused story — what it was, why it was hard, how it was resolved.
+Capture the hardest part and why it was tricky.
 
 ### What I learned
-The insight that will change how I approach something next time. Not a summary of what I did — the thing I now know that I didn't before.
+Write the takeaway in a way future me can reuse.
 
 ### What I would do differently
-Specific and actionable. What would change if starting over with today's knowledge.
+Optional, but useful when the work revealed a better future process.
 ```
 
 **Tone rules:**
-- Write in first person ("I built", "I learned", not "the developer")
-- Human and personal — this is a reflection, not a changelog
-- Honest about failures and confusion, not just wins
-- Document every meaningful hurdle in a human way — capture the confusion, the misleading evidence, and why it took time
-- When an issue is solved, add a resolution reflection: what finally proved the root cause, and what the false leads were
-- Record the full arc: symptom → false leads → final proof
-- Prefer a coherent story over a dry technical summary
+- Write in first person, human and reflective — not a changelog
+- It is okay to say something was frustrating, confusing, or satisfying
+- When an issue is solved, tell the full arc: symptom → false leads → root cause → fix → confirmation
 - No bullet-point dumps — write in prose
-- Avoid technical jargon unless explaining it is the point
-- Do NOT mirror the CHANGELOG — the journal is about the experience, not the feature list
+- Do NOT mirror CHANGELOG.md — the journal is about the experience, not the feature list
+- Never include secrets, passwords, API keys, or sensitive credentials
+
+**Separation of concerns:**
+- `CHANGELOG.md` — public, concise, release-oriented, committed
+- `_private/JOURNAL.md` — private, reflective, local-only, never committed
 
 ---
 
