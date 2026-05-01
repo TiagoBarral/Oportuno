@@ -251,6 +251,11 @@ Do NOT skip steps.
 - **Before merging to main**: `bun run build` must pass
 - Do not bypass any gate.
 
+### Manual testing before committing
+- After implementing any feature or fix that affects UI or user-facing behaviour, always ask the user to test before committing
+- Provide a short, specific testing guide: what to do, what to look for, and what edge cases to try
+- Do not commit until the user confirms the feature works as expected or explicitly says to proceed
+
 ### CHANGELOG
 - Required for any change a user or stakeholder would notice: new behaviour, changed behaviour, or fixed behaviour
 - Not required for `refactor`, `chore`, `test`, or internal fixes that have no visible effect
