@@ -109,7 +109,9 @@ export async function GET(request: Request): Promise<NextResponse> {
     const rawPage     = parseInt(pageParam     ?? "1",  10);
     const rawPageSize = parseInt(pageSizeParam ?? "20", 10);
     const page     = Math.max(1, isNaN(rawPage)     ? 1  : rawPage);
-    const pageSize = Math.min(100, Math.max(1, isNaN(rawPageSize) ? 20 : rawPageSize));
+    // Cap at 500 — the CSV export loops this endpoint in pages of 500 to fetch all results.
+    // Raising this cap affects export round-trip count; do not lower below 500.
+    const pageSize = Math.min(500, Math.max(1, isNaN(rawPageSize) ? 20 : rawPageSize));
     const skip = (page - 1) * pageSize;
 
     const orderBy = { createdAt: "desc" } as const;

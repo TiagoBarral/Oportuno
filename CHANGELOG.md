@@ -11,6 +11,14 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **CSV export in Networking view**: "Exportar" button in the results header downloads all companies matching the current active filters as a UTF-8 CSV file (`oportuno-empresas-YYYY-MM-DD.csv`). If rows are selected, exports only the selected companies (tracked across pages). Columns: Nome, Categoria, Especialidade, Município, Oportunidade, Website, Email, Telefone, Endereço. Capped at 5 000 rows.
+
+### Changed
+
+- **Company selection in Networking** now tracks full Company objects across pages (previously only tracked IDs on the current page). Navigating between pages preserves selections; applying or clearing filters resets them.
+
+---
+
 - **`PipelineJob` / `PipelineCompany` models** (`prisma/schema.prisma`): two new models tracking async discovery jobs and their per-company progress. `PipelineJob` has `JobStatus` (PENDING / RUNNING / DONE / FAILED) and a `@@unique([industry, location])` constraint to prevent duplicate runs. `PipelineCompany` has `CompanyStatus` per place and a FK to `Company` once enriched.
 - **`pipelineJobService.ts`**: all job-lifecycle helpers — `createOrGetJob`, `claimNextJob` (with 10-minute stale-job recovery), `markJobDone/Failed`, `seedPipelineCompanies`, `claimPendingCompany`, `markCompanyDone/Failed`, `getJobProgress` (aggregated counts by status).
 - **`companyService.ts`**: `persistCompany` — extracted upsert logic from `pipelineService`; null-guards on update so existing `websiteUrl`, `email`, and `phoneNumber` are never overwritten with null; sets `lastEnrichedAt` on every write.

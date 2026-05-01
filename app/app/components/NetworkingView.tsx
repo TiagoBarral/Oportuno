@@ -6,6 +6,7 @@ import { opportunityLabel, opportunityColor } from "./shared";
 import { CITY_NAMES } from "@/lib/cities";
 import { CATEGORIES } from "@/lib/categories";
 import { SPECIALTIES } from "@/lib/specialties";
+import { buildCsvString, buildExportFilename, triggerCsvDownload, CSV_EXPORT_LIMIT, EXPORT_PAGE_SIZE } from "./csvExport";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -79,7 +80,8 @@ export default function NetworkingView({
   const pageSize = PAGE_SIZE;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedCompanies, setSelectedCompanies] = useState<Map<string, Company>>(new Map());
+  const [exportLoading, setExportLoading] = useState(false);
 
   // -------------------------------------------------------------------------
   // Data fetching
@@ -152,11 +154,13 @@ export default function NetworkingView({
 
   function handleFilter(e: React.FormEvent) {
     e.preventDefault();
+    setSelectedCompanies(new Map());
     void fetchCompanies(filters, 1);
   }
 
   function handleClearFilters() {
     setFilters(EMPTY_FILTERS);
+    setSelectedCompanies(new Map());
     void fetchCompanies(EMPTY_FILTERS, 1);
   }
 
@@ -168,16 +172,68 @@ export default function NetworkingView({
     onSelectCompany(company);
   }
 
-  function handleCheckboxChange(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+  function handleCheckboxChange(company: Company) {
+    setSelectedCompanies((prev) => {
+      const next = new Map(prev);
+      if (next.has(company.id)) {
+        next.delete(company.id);
       } else {
-        next.add(id);
+        next.set(company.id, company);
       }
       return next;
     });
+  }
+
+  async function handleExport() {
+    // If companies are selected, export only those (tracked across pages)
+    if (selectedCompanies.size > 0) {
+      triggerCsvDownload(
+        buildCsvString(Array.from(selectedCompanies.values())),
+        buildExportFilename(),
+      );
+      return;
+    }
+
+    // Otherwise export all companies matching current filters
+    setExportLoading(true);
+    try {
+      const collected: Company[] = [];
+
+      const buildParams = (page: number) => {
+        const params = new URLSearchParams();
+        params.set("page",     String(page));
+        params.set("pageSize", String(EXPORT_PAGE_SIZE));
+        if (filters.municipality) params.set("municipality", filters.municipality);
+        if (filters.category)     params.set("category",     filters.category);
+        if (filters.specialty)    params.set("specialty",    filters.specialty);
+        if (filters.opportunity)  params.set("opportunity",  filters.opportunity);
+        if (filters.hasWebsite)   params.set("hasWebsite",   filters.hasWebsite);
+        if (filters.hasEmail)     params.set("hasEmail",     filters.hasEmail);
+        return params;
+      };
+
+      // Fetch page 1 first to get the authoritative server total
+      const firstRes = await fetch(`/api/companies?${buildParams(1).toString()}`);
+      if (!firstRes.ok) throw new Error("Erro ao obter página 1");
+      const firstData = (await firstRes.json()) as PaginatedResponse<Company>;
+      collected.push(...firstData.items);
+
+      const serverTotal = Math.min(firstData.total, CSV_EXPORT_LIMIT);
+      const totalPages  = Math.ceil(serverTotal / EXPORT_PAGE_SIZE);
+
+      for (let p = 2; p <= totalPages; p++) {
+        const res = await fetch(`/api/companies?${buildParams(p).toString()}`);
+        if (!res.ok) throw new Error(`Erro ao obter página ${p}`);
+        const data = (await res.json()) as PaginatedResponse<Company>;
+        collected.push(...data.items);
+      }
+
+      triggerCsvDownload(buildCsvString(collected), buildExportFilename());
+    } catch {
+      alert("Não foi possível exportar as empresas. Tente novamente.");
+    } finally {
+      setExportLoading(false);
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -215,7 +271,7 @@ export default function NetworkingView({
 
         {/* Selected count */}
         <p className="text-sm text-gray-600">
-          <span className="font-semibold text-gray-900">{selectedIds.size}</span>{" "}
+          <span className="font-semibold text-gray-900">{selectedCompanies.size}</span>{" "}
           selecionadas
         </p>
 
@@ -344,10 +400,18 @@ export default function NetworkingView({
           </div>
           <button
             type="button"
-            onClick={handleClearFilters}
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            onClick={() => void handleExport()}
+            disabled={exportLoading || (selectedCompanies.size === 0 && total === 0)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
-            Limpar filtros
+            <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            {exportLoading
+              ? "A exportar..."
+              : selectedCompanies.size > 0
+                ? `Exportar (${selectedCompanies.size} selecionadas)`
+                : `Exportar (${Math.min(total, CSV_EXPORT_LIMIT)})`}
           </button>
         </div>
 
@@ -418,8 +482,8 @@ export default function NetworkingView({
                       <input
                         type="checkbox"
                         aria-label={`Selecionar ${company.name}`}
-                        checked={selectedIds.has(company.id)}
-                        onChange={() => handleCheckboxChange(company.id)}
+                        checked={selectedCompanies.has(company.id)}
+                        onChange={() => handleCheckboxChange(company)}
                         className="rounded border-gray-300"
                       />
                     </td>
