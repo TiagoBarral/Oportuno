@@ -1,0 +1,17 @@
+export const CATEGORIES: string[] = [
+  "Restauração",
+  "Retalho Alimentar",
+  "Saúde",
+  "Beleza",
+  "Desporto e Fitness",
+  "Tecnologia",
+  "Moda e Calçado",
+  "Construção e Reparações",
+  "Automóvel",
+  "Jurídico e Financeiro",
+  "Educação",
+  "Turismo e Alojamento",
+  "Animais e Veterinária",
+  "Serviços Profissionais",
+  "Outros",
+];

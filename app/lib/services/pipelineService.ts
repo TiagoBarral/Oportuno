@@ -1,5 +1,7 @@
 import { searchPlaces, getPlaceDetail } from "@/lib/services/placesService";
 import { classifyOpportunity } from "@/lib/services/opportunityService";
+import { classifyCategory } from "@/lib/services/categoryService";
+import { classifySpecialty } from "@/lib/services/specialtyService";
 import { fetchHtml, extractEmail } from "@/lib/services/scraperService";
 import { persistCompany } from "@/lib/services/companyService";
 import {
@@ -12,27 +14,33 @@ import {
   markCompanyFailed,
 } from "@/lib/services/pipelineJobService";
 
-export async function runWorkerTick(): Promise<{
+export async function runWorkerTick(targetJobId?: string): Promise<{
   jobId: string | null;
   processed: number;
   created: number;
   updated: number;
 } | null> {
-  const job = await claimNextJob();
+  const job = await claimNextJob(targetJobId);
   if (!job) return null;
 
   try {
     const places = await searchPlaces(job.industry, job.location, job.radius);
+    console.log(`[worker] searchPlaces returned ${places.length} places`);
     await seedPipelineCompanies(
       job.id,
       places.map((p) => ({ placeId: p.placeId, name: p.name }))
     );
+
+    const category = await classifyCategory(job.industry);
+    const specialty = await classifySpecialty(job.industry, category);
+    console.log(`[worker] category: ${category} / specialty: ${specialty}`);
 
     let processed = 0;
     let created = 0;
     let updated = 0;
 
     let companyRow = await claimPendingCompany(job.id);
+    console.log(`[worker] first: ${companyRow?.name ?? "null"}`);
     while (companyRow !== null) {
       try {
         const detail = await getPlaceDetail(companyRow.placeId);
@@ -50,6 +58,10 @@ export async function runWorkerTick(): Promise<{
           address: detail.address ?? null,
           location: job.location,
           industry: job.industry,
+          category,
+          specialty,
+          municipality: detail.municipality,
+          rawMunicipality: detail.rawMunicipality,
           websiteUrl: detail.website ?? null,
           hasWebsite: detail.website !== null,
           opportunity,
@@ -65,18 +77,17 @@ export async function runWorkerTick(): Promise<{
         else updated += 1;
 
         processed += 1;
+        console.log(`[worker] done: ${companyRow.name} (${processed})`);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.error(
-          `[pipelineService] Failed to process place ${companyRow.placeId} (${companyRow.name}):`,
-          err
-        );
+        console.error(`[worker] failed: ${companyRow.name} — ${message}`);
         await markCompanyFailed(companyRow.id, message);
       }
 
       companyRow = await claimPendingCompany(job.id);
     }
 
+    console.log(`[worker] markJobDone processed=${processed}`);
     await markJobDone(job.id);
     return { jobId: job.id, processed, created, updated };
   } catch (err) {

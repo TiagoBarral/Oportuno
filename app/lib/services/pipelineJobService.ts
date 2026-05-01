@@ -28,7 +28,15 @@ export async function createOrGetJob(
   }
 }
 
-export async function claimNextJob(): Promise<PipelineJob | null> {
+export async function resetJobToPending(jobId: string): Promise<void> {
+  await prisma.pipelineCompany.deleteMany({ where: { jobId } });
+  await prisma.pipelineJob.update({
+    where: { id: jobId },
+    data: { status: "PENDING", startedAt: null, finishedAt: null },
+  });
+}
+
+export async function claimNextJob(targetJobId?: string): Promise<PipelineJob | null> {
   // Recover any job stuck in RUNNING for more than 10 minutes
   await prisma.pipelineJob.updateMany({
     where: {
@@ -38,13 +46,13 @@ export async function claimNextJob(): Promise<PipelineJob | null> {
     data: { status: "PENDING", startedAt: null },
   });
 
-  const jobs = await prisma.pipelineJob.findMany({
-    where: { status: "PENDING" },
+  const job = await prisma.pipelineJob.findFirst({
+    where: targetJobId
+      ? { id: targetJobId, status: "PENDING" }
+      : { status: "PENDING" },
     orderBy: { createdAt: "asc" },
-    take: 1,
   });
 
-  const job = jobs[0] ?? null;
   if (!job) return null;
 
   await prisma.pipelineJob.update({

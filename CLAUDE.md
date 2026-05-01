@@ -83,7 +83,7 @@ Agent manifest: `d:\PERSONAL\AIAssist\spark-ai-assist\AGENTS.md`
 |---|---|
 | `/development` | Starting any new feature. 5-phase flow: definition → brainstorm → plan → tasks → execute. Has 3 human checkpoints — nothing runs until the task list is approved. **Always use this for new features.** |
 | `/bugfix` | Investigating any bug. Same 5-phase structure adapted for root cause analysis and targeted fix. |
-| `/ship` | When all tasks and quality gates are done. Generates commit message, PR title, and description. Read-only — does not commit or push. |
+| `/ship` | Not used in this project — CHANGELOG, commits, and PR follow the rules in this file directly. |
 | `/test-case-design` | Generating test cases from a spec, user story, or acceptance criteria. Covers plain text, CSV, and Gherkin. |
 
 **Rule: never start implementing a feature without first running `/development`. Never fix a bug without first running `/bugfix`.**
@@ -131,7 +131,7 @@ SPECIALIST LAYER agents (scoped execution, report back to orchestrator)
 |---|---|
 | New feature | `/development` |
 | Bug to investigate | `/bugfix` |
-| Ready to commit and PR | `/ship` |
+| Ready to commit and PR | Follow git workflow in this file directly |
 | Writing test cases from a spec | `/test-case-design` |
 | Narrowly scoped, single-domain task | Call the relevant specialist agent directly |
 | Multi-specialist task outside a feature/bug | Invoke `tech-lead` directly with a specific brief |
@@ -196,29 +196,35 @@ Do NOT skip steps.
 ## Git Workflow
 
 ### Branches
-- `main` is always stable — only merged, working code lives here
-- All work happens on short-lived branches:
-  - `feat/short-description` — new features
+- `main` is always stable and deployable — only passing, working code lives here
+- Branch for any change that affects app behavior, schema, routing, UI, or dependencies
+- Commit directly to `main` only for docs, typos, or comments that do not affect behavior. When unsure, use a branch.
+- Branch names:
+  - `feat/short-description` — user-facing features
   - `fix/short-description` — bug fixes
-  - `chore/short-description` — tooling, config, cleanup
+  - `chore/short-description` — maintenance, config, deps, docs workflow
+  - `refactor/short-description` — internal restructure, no behavior change
   - `test/short-description` — tests only
-  - `refactor/short-description` — structural changes, no new behavior
-- Never commit directly to `main`
+- A branch should be mergeable within a few days. If scope grows beyond one coherent feature, split it.
 
 ### Commits
 - One logical change per commit — no "misc changes" or "WIP" commits
-- For feature branches that span multiple parts of the system, structure commits in dependency order (from lower-level building blocks to higher-level consumers). Example (current architecture): schema → services → domain/pipeline → API → UI → infra. The exact layers may evolve — the rule is to commit in the order components depend on each other.
+- For branches that span multiple layers, commit in dependency order (schema → services → API → UI)
 - Format: `type: short description` (lowercase, no period)
   - e.g. `feat: add opportunity classifier`, `fix: extractEmail uppercase mailto`
-- Valid types: `feat`, `fix`, `chore`, `test`, `refactor`, `docs`
+- Valid types: `feat`, `fix`, `chore`, `refactor`, `test`
+- Do not label internal or dev-only changes as `feat`
 
-### Pull Requests
-- Every branch merges into `main` via a PR — no direct merges
-- Use the PR template at `.github/pull_request_template.md`:
-  - Fill in: what it does, type of change, files changed, how to test
-  - Complete the checklist before merging (app runs, no secrets, CHANGELOG updated)
-- Squash and merge to keep `main` history clean
-- Delete the branch after merging
+### Merging
+- No PR required for solo development — merge locally after a successful build
+- Open a PR only when you want a record of the decision (significant features, architectural changes)
+- Merge flow:
+  1. `bun run build` must pass on the branch — this is the gate
+  2. `git checkout main && git pull`
+  3. `git merge <branch-name>`
+  4. `git push origin main`
+  5. `git branch -d <branch-name>`
+- If opening a PR: add entries to `[Unreleased]` in `CHANGELOG.md` on the branch first
 
 ### Releases and Versioning
 
@@ -229,11 +235,11 @@ Do NOT skip steps.
 - Cut a release when a coherent set of features works end-to-end — not after every commit
 
 **Release checklist** (do in order):
-1. All feature branches merged to `main` via PR
-2. `bun run test` passes — 0 failures
-3. `bun tsc --noEmit` passes — 0 errors
+1. All branches merged to `main`
+2. `bun run build` passes — 0 errors
+3. `bun run test` passes — 0 failures
 4. App runs locally without errors (`bun dev`)
-5. `[Unreleased]` in `CHANGELOG.md` renamed to version + date: `## [0.3.0] — YYYY-MM-DD`
+5. Rename `[Unreleased]` in `CHANGELOG.md` to version + date: `## [0.3.0] — YYYY-MM-DD`
 6. Fresh empty `## [Unreleased]` section opened above it
 7. Commit: `chore: release v0.3.0`
 8. Tag the commit: `git tag v0.3.0`
@@ -242,7 +248,12 @@ Do NOT skip steps.
 ### Verification gates
 - **Before every commit**: `bun tsc --noEmit` must pass (enforced by pre-commit hook)
 - **Before every push**: `bun run test` must pass (enforced by pre-push hook)
-- Do not bypass either gate.
+- **Before merging to main**: `bun run build` must pass
+- Do not bypass any gate.
+
+### CHANGELOG
+- Required for any change a user or stakeholder would notice: new behaviour, changed behaviour, or fixed behaviour
+- Not required for `refactor`, `chore`, `test`, or internal fixes that have no visible effect
 
 ### Environment variables
 - Never commit `.env` or `.env.local`
@@ -291,43 +302,52 @@ Do NOT skip steps.
 
 ### Journal (`_private/JOURNAL.md`)
 
-**Rule: whenever CHANGELOG.md is updated, always update the journal in the same action — no need to ask.**
+The journal is a private, local-only development log. It must never be committed or pushed. It documents the human story of the project: debates, plans, lessons learned, hurdles, confusing bugs, tradeoffs, decisions, and moments where something finally clicks.
 
-The journal is a personal development log written for portfolio use. Each entry feeds the project reflection format on the portfolio page.
+**When to update** — create or update an entry whenever:
+- We have a meaningful debate or planning discussion
+- We make an important product or technical decision
+- We hit a confusing bug or blocker
+- We solve a significant issue
+- We learn something that should influence future work
+- We update CHANGELOG.md
+- We complete meaningful work that changes app behavior, UX, routing, storage, schema, deployment, or project workflow
 
-**When to update:** whenever the user asks, or after a session with meaningful work.
-
-**Entry format — one section per working session:**
+**Entry format:**
 
 ```
-## [Date] — [Short title describing the session]
+## Month Day, Year — Short Human Title
 
-### What I built
-One or two paragraphs. Concrete, specific. What exists now that didn't before.
+### What I built / changed
+Describe the actual work in plain language.
 
-### What I was trying to learn
-What skill, concept, or problem drove this session beyond just shipping the feature.
+### What I was trying to learn / decide
+Explain the intention, debate, or question behind the work.
 
 ### What went wrong
-Honest account of failures, dead ends, and wasted time. Don't sanitize.
+Describe bugs, confusion, false assumptions, or friction.
 
 ### Biggest challenge / bug
-Single hardest thing. One focused story — what it was, why it was hard, how it was resolved.
+Capture the hardest part and why it was tricky.
 
 ### What I learned
-The insight that will change how I approach something next time. Not a summary of what I did — the thing I now know that I didn't before.
+Write the takeaway in a way future me can reuse.
 
 ### What I would do differently
-Specific and actionable. What would change if starting over with today's knowledge.
+Optional, but useful when the work revealed a better future process.
 ```
 
 **Tone rules:**
-- Write in first person ("I built", "I learned", not "the developer")
-- Human and personal — this is a reflection, not a changelog
-- Honest about failures and confusion, not just wins
+- Write in first person, human and reflective — not a changelog
+- It is okay to say something was frustrating, confusing, or satisfying
+- When an issue is solved, tell the full arc: symptom → false leads → root cause → fix → confirmation
 - No bullet-point dumps — write in prose
-- Avoid technical jargon unless explaining it is the point
-- Do NOT mirror the CHANGELOG — the journal is about the experience, not the feature list
+- Do NOT mirror CHANGELOG.md — the journal is about the experience, not the feature list
+- Never include secrets, passwords, API keys, or sensitive credentials
+
+**Separation of concerns:**
+- `CHANGELOG.md` — public, concise, release-oriented, committed
+- `_private/JOURNAL.md` — private, reflective, local-only, never committed
 
 ---
 

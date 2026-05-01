@@ -39,6 +39,10 @@ model Company {
   address     String?
   industry    String
   location    String
+  category        String      @default("Outros")
+  specialty       String      @default("Outros")
+  municipality    String?
+  rawMunicipality String?
   websiteUrl  String?
   hasWebsite  Boolean     @default(false)
   opportunity Opportunity @default(NONE)
@@ -54,6 +58,9 @@ model Company {
   @@index([industry])
   @@index([location])
   @@index([opportunity])
+  @@index([category])
+  @@index([specialty])
+  @@index([municipality])
 }
 
 model PipelineJob {
