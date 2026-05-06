@@ -69,6 +69,17 @@ Items to debate and plan before deploying to a real environment. Not prioritized
 - [ ] Decide and document deployment target — Railway, Vercel, or a managed PostgreSQL host; decision affects connection pooling, env var management, and cold starts
 - [ ] Database backup strategy — document how the PostgreSQL database will be backed up in production
 
+## AI Dev Workflow — Cost and Efficiency
+
+Based on session analysis ($100 / 4-day session, 93% at >150k context):
+
+- [ ] **Use `/compact` mid-session** — when switching features or after a long feature completes, run `/compact` to reduce context size. Long context is expensive even when cached.
+- [ ] **Use `/clear` between unrelated tasks** — starting a new topic on a 150k+ context session costs significantly more than starting fresh.
+- [ ] **Cap session length** — sessions active 8+ hours accumulate cost continuously. Break work into daily sessions with a `/clear` between them.
+- [ ] **Be deliberate about subagents** — each `/feature` flow spawns architect + frontend-engineer + code-reviewer + security-auditor. For small changes, skip the skill and implement directly. Reserve `/feature` for features that genuinely need the planning phases.
+- [ ] **Configure cheaper model for simpler subagents** — code-reviewer and architect tasks could run on a cheaper model. Check if Claude Code supports per-agent model config in settings.json.
+- [ ] **Batch small changes** — UI tweaks, copy changes, and single-file fixes don't need a full `/feature` flow. Group them and implement directly to avoid spawning multiple subagents for trivial work.
+
 ---
 
 ## Known Limitations (MVP)

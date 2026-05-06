@@ -235,9 +235,12 @@ This is not optional and not skippable. If you are mid-session and realise no br
 **At the end of every `/development` or `/bugfix` flow**, before asking the user to proceed:
 1. Run `bun tsc --noEmit` — must be clean
 2. Commit all changes with a meaningful message on the feature branch
-3. Confirm the branch name and commit to the user
+3. Update `_private/JOURNAL.md` — write a proper entry covering the debate, decisions, what went wrong, and what was learned. Do NOT skip this. Do NOT defer it to later.
+4. Confirm the branch name and commit to the user
 
-Failure to create a branch before coding is one of the most repeated mistakes in this project. There is no excuse for skipping it.
+After any meaningful debate, decision, or standalone fix (even outside a full flow), write a journal entry immediately — before moving to the next topic.
+
+Failure to create a branch before coding is one of the most repeated mistakes in this project. Failure to update the journal after every meaningful session is the other. There is no excuse for skipping either.
 
 ---
 
