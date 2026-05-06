@@ -177,10 +177,10 @@ export default function Home() {
               {/* Step 1 */}
               <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-4 flex flex-col items-center text-center gap-3">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center">
-                    <IconSliders className="w-9 h-9 text-blue-600" />
+                  <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
+                    <IconSliders className="w-9 h-9 text-blue-700" />
                   </div>
-                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-sm">1</span>
+                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow-sm">1</span>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-800">Filtre empresas</p>
@@ -199,10 +199,10 @@ export default function Home() {
               {/* Step 2 */}
               <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-4 flex flex-col items-center text-center gap-3">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center">
-                    <IconUsers className="w-9 h-9 text-blue-600" />
+                  <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
+                    <IconUsers className="w-9 h-9 text-blue-700" />
                   </div>
-                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-sm">2</span>
+                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow-sm">2</span>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-800">Selecione oportunidades</p>
@@ -221,10 +221,10 @@ export default function Home() {
               {/* Step 3 */}
               <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-4 flex flex-col items-center text-center gap-3">
                 <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center">
-                    <IconEnvelope className="w-9 h-9 text-blue-600" />
+                  <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
+                    <IconEnvelope className="w-9 h-9 text-blue-700" />
                   </div>
-                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-sm">3</span>
+                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow-sm">3</span>
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-gray-800">Contacte em massa</p>
@@ -241,8 +241,8 @@ export default function Home() {
 
               <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
                 <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <IconSparkle className="w-9 h-9 text-blue-600" />
+                  <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <IconSparkle className="w-9 h-9 text-gray-500" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-800">Criar template de email</p>
@@ -256,8 +256,8 @@ export default function Home() {
 
               <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
                 <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <IconClock className="w-9 h-9 text-blue-600" />
+                  <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
+                    <IconClock className="w-9 h-9 text-gray-500" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-gray-800">Ver histórico de emails</p>
