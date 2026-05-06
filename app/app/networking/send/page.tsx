@@ -9,6 +9,7 @@ import type {
   BulkSendResult,
   AIContextFile,
   EmailAttachment,
+  EmailTemplate,
 } from "../../types";
 import AppShell from "../../components/AppShell";
 import {
@@ -61,6 +62,16 @@ export default function BulkSendPage() {
 
   const [contactedInSelection, setContactedInSelection] = useState<string[]>([]);
   const [warningDismissed, setWarningDismissed] = useState(false);
+
+  const [showSaveForm, setShowSaveForm] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showLoadDropdown, setShowLoadDropdown] = useState(false);
+  const [availableTemplates, setAvailableTemplates] = useState<EmailTemplate[]>([]);
+  const [loadError, setLoadError] = useState(false);
+  const loadDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -117,12 +128,19 @@ export default function BulkSendPage() {
       ) {
         setBodyDropdownOpen(false);
       }
+      if (
+        showLoadDropdown &&
+        loadDropdownRef.current !== null &&
+        !loadDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowLoadDropdown(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [subjectDropdownOpen, bodyDropdownOpen]);
+  }, [subjectDropdownOpen, bodyDropdownOpen, showLoadDropdown]);
 
   function handleBriefChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
@@ -218,6 +236,65 @@ export default function BulkSendPage() {
     };
     reader.onerror = () => { setAttachmentError("Erro ao ler o ficheiro."); };
     reader.readAsDataURL(file);
+  }
+
+  async function handleSaveTemplate() {
+    setSaveLoading(true);
+    setSaveError(null);
+    try {
+      const res = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: templateName.trim(),
+          subject: subjectTemplate,
+          body: bodyTemplate,
+          oferta: brief.oferta,
+          tom: brief.tom,
+          instrucoesAdicionais: brief.instrucoesAdicionais ?? null,
+        }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setSaveError(data.error ?? "Erro ao guardar template.");
+      } else {
+        setShowSaveForm(false);
+        setTemplateName("");
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 3000);
+      }
+    } catch {
+      setSaveError("Erro de rede. Tente novamente.");
+    } finally {
+      setSaveLoading(false);
+    }
+  }
+
+  async function handleOpenLoadDropdown() {
+    setLoadError(false);
+    try {
+      const res = await fetch("/api/templates");
+      if (res.ok) {
+        const data = (await res.json()) as EmailTemplate[];
+        setAvailableTemplates(data);
+      } else {
+        setLoadError(true);
+      }
+    } catch {
+      setLoadError(true);
+    }
+    setShowLoadDropdown(true);
+  }
+
+  function handleLoadTemplate(t: EmailTemplate) {
+    setBrief({
+      oferta: t.oferta,
+      tom: t.tom,
+      instrucoesAdicionais: t.instrucoesAdicionais ?? "",
+    });
+    setSubjectTemplate(t.subject);
+    setBodyTemplate(t.body);
+    setShowLoadDropdown(false);
   }
 
   async function handleGenerateTemplate() {
@@ -488,9 +565,88 @@ export default function BulkSendPage() {
                 <IconSparkle className="w-4 h-4" />
                 {templateLoading ? "A gerar..." : "Gerar com IA"}
               </button>
+              <div className="relative" ref={loadDropdownRef}>
+                <button
+                  type="button"
+                  onClick={() => void handleOpenLoadDropdown()}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors flex items-center justify-between gap-2"
+                >
+                  <span>Carregar template</span>
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {showLoadDropdown && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-20 rounded-lg border border-gray-200 bg-white shadow-lg py-1 max-h-48 overflow-y-auto">
+                    {loadError ? (
+                      <p className="px-3 py-2 text-xs text-red-500">Erro ao carregar templates.</p>
+                    ) : availableTemplates.length === 0 ? (
+                      <p className="px-3 py-2 text-xs text-gray-400">Nenhum template guardado</p>
+                    ) : (
+                      availableTemplates.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => handleLoadTemplate(t)}
+                          className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
+                        >
+                          <p className="text-xs font-medium text-gray-800">{t.name}</p>
+                          <p className="text-xs text-gray-400 truncate">{t.subject}</p>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
               <p className="text-xs text-gray-400 -mt-3 text-center">
                 A IA usará os placeholders: {`{{empresa}}`}, {`{{municipio}}`}, {`{{setor}}`}
               </p>
+              <div className="flex flex-col gap-2">
+                {saveSuccess && (
+                  <p className="text-xs text-green-600 font-medium">Template guardado!</p>
+                )}
+                {!showSaveForm ? (
+                  <button
+                    type="button"
+                    disabled={subjectTemplate.trim() === "" || bodyTemplate.trim() === "" || brief.oferta.trim() === ""}
+                    onClick={() => { setShowSaveForm(true); setSaveSuccess(false); }}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Guardar template
+                  </button>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      placeholder="Nome do template (ex: Web para PMEs)"
+                      maxLength={80}
+                      className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
+                    />
+                    {saveError !== null && (
+                      <p className="text-xs text-red-600">{saveError}</p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={saveLoading || templateName.trim() === ""}
+                        onClick={() => void handleSaveTemplate()}
+                        className="flex-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {saveLoading ? "A guardar..." : "Guardar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowSaveForm(false); setTemplateName(""); setSaveError(null); }}
+                        className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
             </div>
           </aside>

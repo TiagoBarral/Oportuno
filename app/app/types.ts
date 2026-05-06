@@ -84,6 +84,18 @@ export interface UserSettings {
   senderEmail: string | null;
 }
 
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  oferta: string;
+  tom: "profissional" | "amigavel" | "direto";
+  instrucoesAdicionais: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EmailAttachment {
   filename: string;
   content: string; // base64-encoded file content

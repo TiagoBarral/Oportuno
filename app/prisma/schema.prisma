@@ -117,3 +117,15 @@ model UserSettings {
   senderName  String
   senderEmail String
 }
+
+model EmailTemplate {
+  id                    String   @id @default(cuid())
+  name                  String
+  subject               String
+  body                  String
+  oferta                String
+  tom                   String
+  instrucoesAdicionais  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
