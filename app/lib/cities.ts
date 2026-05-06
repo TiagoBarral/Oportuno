@@ -3,6 +3,8 @@
   lng: number;
 }
 
+import { MUNICIPALITY_PARISHES } from "./parishes";
+
 /**
  * Coordinate lookup for Portuguese cities and municipalities.
  * Used by placesService.ts to bias Google Places Text Search results.
@@ -98,6 +100,52 @@ export const CITY_NAMES: string[] = [
   "Barcelos",
 ];
 
+export interface DistrictOption {
+  name: string;
+  municipalities: string[];
+}
+
+export const DISTRICT_OPTIONS: DistrictOption[] = [
+  { name: "Aveiro", municipalities: ["Aveiro"] },
+  { name: "Braga", municipalities: ["Braga", "Guimarães", "Barcelos"] },
+  { name: "Coimbra", municipalities: ["Coimbra"] },
+  { name: "Évora", municipalities: ["Évora"] },
+  { name: "Faro", municipalities: ["Faro", "Portimão"] },
+  { name: "Leiria", municipalities: ["Leiria"] },
+  {
+    name: "Lisboa",
+    municipalities: ["Lisboa", "Oeiras", "Cascais", "Sintra", "Amadora", "Loures", "Odivelas"],
+  },
+  {
+    name: "Porto",
+    municipalities: ["Porto", "Matosinhos", "Vila Nova de Gaia", "Gondomar", "Maia", "Valongo"],
+  },
+  { name: "Santarém", municipalities: ["Santarém"] },
+  { name: "Setúbal", municipalities: ["Setúbal", "Almada", "Barreiro", "Montijo"] },
+  { name: "Viana do Castelo", municipalities: ["Viana do Castelo"] },
+  { name: "Viseu", municipalities: ["Viseu"] },
+  { name: "Madeira", municipalities: ["Funchal"] },
+];
+
+const MUNICIPALITY_TO_DISTRICT: Record<string, string> = {};
+for (const district of DISTRICT_OPTIONS) {
+  for (const municipality of district.municipalities) {
+    MUNICIPALITY_TO_DISTRICT[municipality] = district.name;
+  }
+}
+
+export function findDistrictForMunicipality(municipality: string): string {
+  return MUNICIPALITY_TO_DISTRICT[municipality] ?? "";
+}
+
+export function getMunicipalitiesForDistrict(districtName: string): string[] {
+  return DISTRICT_OPTIONS.find((district) => district.name === districtName)?.municipalities ?? [];
+}
+
+export function getParishesForMunicipality(municipality: string): string[] {
+  return MUNICIPALITY_PARISHES[municipality] ?? [];
+}
+
 // Built once at module load: normalised key → canonical display name
 const CITY_KEY_TO_DISPLAY: Record<string, string> = {};
 for (const name of CITY_NAMES) {
@@ -116,3 +164,4 @@ export function canonicaliseMunicipality(raw: string): string | null {
   }
   return canonical;
 }
+

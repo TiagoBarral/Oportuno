@@ -18,6 +18,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   const industryParam     = searchParams.get("industry");
   const locationParam     = searchParams.get("location");
   const municipalityParam = searchParams.get("municipality");
+  const municipalitiesParam = searchParams.get("municipalities");
   const categoryParam     = searchParams.get("category");
   const specialtyParam    = searchParams.get("specialty");
   const opportunityParam  = searchParams.get("opportunity");
@@ -78,7 +79,14 @@ export async function GET(request: Request): Promise<NextResponse> {
       where.location = { equals: locationParam, mode: "insensitive" };
     }
 
-    if (municipalityParam !== null && municipalityParam !== "") {
+    const municipalityList = (municipalitiesParam ?? "")
+      .split(",")
+      .map((municipality) => municipality.trim())
+      .filter(Boolean);
+
+    if (municipalityList.length > 0) {
+      where.municipality = { in: municipalityList, mode: "insensitive" };
+    } else if (municipalityParam !== null && municipalityParam !== "") {
       where.municipality = { equals: municipalityParam, mode: "insensitive" };
     }
 
