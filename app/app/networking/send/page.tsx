@@ -610,8 +610,11 @@ export default function BulkSendPage() {
                     type="button"
                     disabled={subjectTemplate.trim() === "" || bodyTemplate.trim() === "" || brief.oferta.trim() === ""}
                     onClick={() => { setShowSaveForm(true); setSaveSuccess(false); }}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-full rounded-lg border border-blue-300 bg-blue-50 px-3 py-2 text-sm font-medium text-blue-700 hover:bg-blue-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
                   >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 16v2a2 2 0 01-2 2H5a2 2 0 01-2-2v-2M7 10l5 5m0 0l5-5m-5 5V4" />
+                    </svg>
                     Guardar template
                   </button>
                 ) : (
