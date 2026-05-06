@@ -280,7 +280,13 @@ export default function BulkSendPage() {
     }
   }
 
+  const senderConfigured =
+    senderSettings !== null &&
+    Boolean(senderSettings.senderName) &&
+    Boolean(senderSettings.senderEmail);
+
   const sendDisabled =
+    !senderConfigured ||
     recipients.length === 0 ||
     subjectTemplate.trim() === "" ||
     bodyTemplate.trim() === "" ||
@@ -876,7 +882,11 @@ export default function BulkSendPage() {
 
         {results === null ? (
           <footer className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-3 flex items-center justify-between">
-            <p className="text-xs text-gray-400">Não é possível desfazer esta ação</p>
+            <p className="text-xs text-gray-400">
+              {!senderConfigured
+                ? "Configure o remetente em Definições antes de enviar."
+                : "Não é possível desfazer esta ação"}
+            </p>
             <button
               type="button"
               onClick={() => void handleSend()}
