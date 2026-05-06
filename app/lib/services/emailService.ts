@@ -1,12 +1,15 @@
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { EmailStatus } from "@prisma/client";
+import type { EmailAttachment } from "@/app/types";
 
 export interface SendEmailInput {
   companyId: string;
   to: string;
   subject: string;
   body: string;
+  from: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface SendEmailResult {
@@ -23,10 +26,19 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   let resendError: { message: string } | null = null;
   try {
     const { error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_ADDRESS || "noreply@oportuno.pt",
+      from: input.from,
       to: [input.to],
       subject: input.subject,
       text: input.body,
+      ...(input.attachments && input.attachments.length > 0
+        ? {
+            attachments: input.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              content_type: "application/pdf",
+            })),
+          }
+        : {}),
     });
     if (error) resendError = { message: error.message };
   } catch (err) {

@@ -4,7 +4,7 @@
 
 - This repository contains ONLY application code
 - AI tooling and agents are external (AIAssist)
-- Claude must operate on this project using that external system
+- Codex must operate on this project using that external system
 - Do NOT recreate or embed tooling inside this repo
 
 ---
@@ -118,7 +118,7 @@ The AI dev team lives at: `d:\PERSONAL\AIAssist\ai-dev-framework`
 
 This is a separate repo used as a personal AI dev team across all projects. It provides skills (interactive workflows), agents (specialist executors), and documentation. Do NOT recreate any of this tooling inside Oportuno.
 
-Full docs: `d:\PERSONAL\AIAssist\ai-dev-framework\.claude\docs\`
+Full docs: `d:\PERSONAL\AIAssist\ai-dev-framework\.Codex\docs\`
 Agent manifest: `d:\PERSONAL\AIAssist\ai-dev-framework\AGENTS.md`
 
 ---
@@ -219,28 +219,6 @@ For every task:
 4. For tiny low-risk edits, direct implementation is allowed, but still follow this file's git, build, test, changelog, and safety rules
 
 Do not add process when it does not protect the app, but do not bypass AIAssist when the work is ambiguous or risky.
-
-### Branch rule — enforced without exception
-
-**Before writing a single line of code for any feature or fix, create a branch.**
-
-```
-git checkout -b feat/short-description   # new feature
-git checkout -b fix/short-description    # bug fix
-git checkout -b chore/short-description  # maintenance
-```
-
-This is not optional and not skippable. If you are mid-session and realise no branch was created, stop, create the branch, then continue. Never accumulate multiple features on the same branch. Never commit directly to `main` except for docs/typo fixes as defined in the Git Workflow section.
-
-**At the end of every `/development` or `/bugfix` flow**, before asking the user to proceed:
-1. Run `bun tsc --noEmit` — must be clean
-2. Commit all changes with a meaningful message on the feature branch
-3. Update `_private/JOURNAL.md` — write a proper entry covering the debate, decisions, what went wrong, and what was learned. Do NOT skip this. Do NOT defer it to later.
-4. Confirm the branch name and commit to the user
-
-After any meaningful debate, decision, or standalone fix (even outside a full flow), write a journal entry immediately — before moving to the next topic.
-
-Failure to create a branch before coding is one of the most repeated mistakes in this project. Failure to update the journal after every meaningful session is the other. There is no excuse for skipping either.
 
 ---
 
@@ -343,11 +321,6 @@ Failure to create a branch before coding is one of the most repeated mistakes in
 - **Before every push**: `bun run test` must pass (enforced by pre-push hook)
 - **Before merging to main**: `bun run build` must pass
 - Do not bypass any gate.
-
-### Manual testing before committing
-- After implementing any feature or fix that affects UI or user-facing behaviour, always ask the user to test before committing
-- Provide a short, specific testing guide: what to do, what to look for, and what edge cases to try
-- Do not commit until the user confirms the feature works as expected or explicitly says to proceed
 
 ### CHANGELOG
 - Required for any change a user or stakeholder would notice: new behaviour, changed behaviour, or fixed behaviour
@@ -468,7 +441,7 @@ Optional, but useful when the work revealed a better future process.
 ## Priority
 
 If any instruction conflicts:
-1. CLAUDE.md rules override everything
+1. AGENTS.md rules override everything
 2. Simplicity over complexity
 3. Do not invent features
 

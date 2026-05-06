@@ -1,25 +1,52 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Company, NetworkingFilters, PaginatedResponse } from "../types";
-import { opportunityLabel, opportunityColor } from "./shared";
-import { CITY_NAMES } from "@/lib/cities";
+import { IconPaperPlane } from "./shared";
+import {
+  DISTRICT_OPTIONS,
+  findDistrictForMunicipality,
+  getMunicipalitiesForDistrict,
+  getParishesForMunicipality,
+} from "@/lib/cities";
 import { CATEGORIES } from "@/lib/categories";
 import { SPECIALTIES } from "@/lib/specialties";
-
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
+import { buildCsvString, buildExportFilename, triggerCsvDownload, CSV_EXPORT_LIMIT, EXPORT_PAGE_SIZE } from "./csvExport";
 
 interface NetworkingViewProps {
   selectedCompany: Company | null;
   onSelectCompany: (company: Company) => void;
+  onContactar: (companies: Company[]) => void;
   initialFilters?: Partial<NetworkingFilters>;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+interface LocationSelection {
+  district: string;
+  municipality: string;
+  parish: string;
+}
+
+const AVATAR_COLORS = [
+  "bg-blue-500",
+  "bg-violet-500",
+  "bg-emerald-500",
+  "bg-orange-500",
+  "bg-rose-500",
+  "bg-cyan-500",
+];
+
+function avatarColor(name: string): string {
+  const code = name.trim().charCodeAt(0) ?? 0;
+  return AVATAR_COLORS[code % AVATAR_COLORS.length] ?? "bg-blue-500";
+}
+
+const FILTER_LABELS: Partial<Record<keyof NetworkingFilters, (v: string) => string>> = {
+  municipality: (v) => `Concelho: ${v}`,
+  category: (v) => `Categoria: ${v}`,
+  specialty: (v) => `Especialidade: ${v}`,
+  hasWebsite: (v) => v === "true" ? "Com website" : "Sem website",
+  hasEmail: (v) => v === "true" ? "Com email" : "Sem email",
+};
 
 function companyInitials(name: string): string {
   return name
@@ -40,11 +67,40 @@ const EMPTY_FILTERS: NetworkingFilters = {
   hasEmail: "",
 };
 
-const PAGE_SIZE = 20;
+const EMPTY_LOCATION_SELECTION: LocationSelection = {
+  district: "",
+  municipality: "",
+  parish: "",
+};
 
-// ---------------------------------------------------------------------------
-// Pagination helper — returns page numbers with "..." gaps
-// ---------------------------------------------------------------------------
+function initialLocationSelection(municipality?: string): LocationSelection {
+  if (!municipality) return EMPTY_LOCATION_SELECTION;
+  return {
+    district: findDistrictForMunicipality(municipality),
+    municipality,
+    parish: "",
+  };
+}
+
+function municipalityScopeFor(selection: LocationSelection): string[] {
+  if (selection.municipality) return [selection.municipality];
+  if (selection.district) return getMunicipalitiesForDistrict(selection.district);
+  return [];
+}
+
+function addCompanyFilterParams(
+  params: URLSearchParams,
+  currentFilters: NetworkingFilters,
+  locationSelection: LocationSelection,
+) {
+  const municipalities = municipalityScopeFor(locationSelection);
+  if (municipalities.length === 1) params.set("municipality", municipalities[0]);
+  if (municipalities.length > 1) params.set("municipalities", municipalities.join(","));
+  if (currentFilters.category)    params.set("category", currentFilters.category);
+  if (currentFilters.specialty)   params.set("specialty", currentFilters.specialty);
+  if (currentFilters.hasWebsite)  params.set("hasWebsite", currentFilters.hasWebsite);
+  if (currentFilters.hasEmail)    params.set("hasEmail", currentFilters.hasEmail);
+}
 
 function buildPageWindow(current: number, total: number): (number | "...")[] {
   if (total <= 7) {
@@ -60,49 +116,50 @@ function buildPageWindow(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
-
 export default function NetworkingView({
   selectedCompany,
   onSelectCompany,
+  onContactar,
   initialFilters,
 }: NetworkingViewProps) {
   const [filters, setFilters] = useState<NetworkingFilters>({
     ...EMPTY_FILTERS,
     ...initialFilters,
   });
+  const [locationSelection, setLocationSelection] = useState<LocationSelection>(() =>
+    initialLocationSelection(initialFilters?.municipality),
+  );
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const pageSize = PAGE_SIZE;
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-
-  // -------------------------------------------------------------------------
-  // Data fetching
-  // -------------------------------------------------------------------------
+  const [selectedCompanies, setSelectedCompanies] = useState<Map<string, Company>>(new Map());
+  const [exportLoading, setExportLoading] = useState(false);
+  const [contactedIds, setContactedIds] = useState<Set<string>>(new Set());
+  const abortRef = useRef<AbortController | null>(null);
 
   async function fetchCompanies(
     currentFilters: NetworkingFilters,
     currentPage: number,
+    size?: number,
+    currentLocationSelection = locationSelection,
   ) {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    const effectiveSize = size ?? pageSize;
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
       params.set("page", String(currentPage));
-      params.set("pageSize", String(pageSize));
-      if (currentFilters.municipality) params.set("municipality", currentFilters.municipality);
-      if (currentFilters.category)    params.set("category", currentFilters.category);
-      if (currentFilters.specialty)   params.set("specialty", currentFilters.specialty);
-      if (currentFilters.opportunity) params.set("opportunity", currentFilters.opportunity);
-      if (currentFilters.hasWebsite)  params.set("hasWebsite", currentFilters.hasWebsite);
-      if (currentFilters.hasEmail)    params.set("hasEmail", currentFilters.hasEmail);
+      params.set("pageSize", String(effectiveSize));
+      addCompanyFilterParams(params, currentFilters, currentLocationSelection);
 
-      const res = await fetch(`/api/companies?${params.toString()}`);
+      const res = await fetch(`/api/companies?${params.toString()}`, { signal: controller.signal });
       const data: unknown = await res.json();
 
       if (!res.ok) {
@@ -128,36 +185,87 @@ export default function NetworkingView({
         throw new Error("Resposta inesperada do servidor.");
       }
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Erro desconhecido.");
     } finally {
       setLoading(false);
     }
   }
 
-  // -------------------------------------------------------------------------
-  // Handlers
-  // -------------------------------------------------------------------------
-
-  function handleFilterChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-  ) {
-    const { name, value } = e.target;
-    setFilters((prev) => ({
-      ...prev,
-      [name]: value,
-      // reset specialty when category changes
-      ...(name === "category" ? { specialty: "" } : {}),
-    }));
+  function handleInstantFilterChange(key: keyof NetworkingFilters, value: string) {
+    const newFilters: NetworkingFilters = {
+      ...filters,
+      [key]: value,
+      ...(key === "category" ? { specialty: "" } : {}),
+    };
+    setFilters(newFilters);
+    setSelectedCompanies(new Map());
+    void fetchCompanies(newFilters, 1);
   }
 
-  function handleFilter(e: React.FormEvent) {
-    e.preventDefault();
-    void fetchCompanies(filters, 1);
+  function handleDistrictChange(district: string) {
+    const newFilters: NetworkingFilters = { ...filters, municipality: "" };
+    const newLocationSelection: LocationSelection = {
+      district,
+      municipality: "",
+      parish: "",
+    };
+    setFilters(newFilters);
+    setLocationSelection(newLocationSelection);
+    setSelectedCompanies(new Map());
+    void fetchCompanies(newFilters, 1, undefined, newLocationSelection);
+  }
+
+  function handleMunicipalityChange(municipality: string) {
+    const newFilters: NetworkingFilters = { ...filters, municipality };
+    const newLocationSelection: LocationSelection = {
+      district: locationSelection.district || findDistrictForMunicipality(municipality),
+      municipality,
+      parish: "",
+    };
+    setFilters(newFilters);
+    setLocationSelection(newLocationSelection);
+    setSelectedCompanies(new Map());
+    void fetchCompanies(newFilters, 1, undefined, newLocationSelection);
+  }
+
+  function handleParishChange(parish: string) {
+    setLocationSelection((prev) => ({ ...prev, parish }));
+  }
+
+  function handleClearLocationFilter() {
+    const newFilters: NetworkingFilters = { ...filters, municipality: "" };
+    setFilters(newFilters);
+    setLocationSelection(EMPTY_LOCATION_SELECTION);
+    setSelectedCompanies(new Map());
+    void fetchCompanies(newFilters, 1, undefined, EMPTY_LOCATION_SELECTION);
+  }
+
+  function handleRemoveChip(key: keyof NetworkingFilters) {
+    if (key === "municipality") {
+      handleClearLocationFilter();
+      return;
+    }
+    const newFilters: NetworkingFilters = {
+      ...filters,
+      [key]: "",
+      ...(key === "category" ? { specialty: "" } : {}),
+    };
+    setFilters(newFilters);
+    setSelectedCompanies(new Map());
+    void fetchCompanies(newFilters, 1);
   }
 
   function handleClearFilters() {
     setFilters(EMPTY_FILTERS);
-    void fetchCompanies(EMPTY_FILTERS, 1);
+    setLocationSelection(EMPTY_LOCATION_SELECTION);
+    setSelectedCompanies(new Map());
+    void fetchCompanies(EMPTY_FILTERS, 1, undefined, EMPTY_LOCATION_SELECTION);
+  }
+
+  function handlePageSizeChange(newSize: number) {
+    setPageSize(newSize);
+    void fetchCompanies(filters, 1, newSize);
   }
 
   function handlePageChange(newPage: number) {
@@ -168,342 +276,411 @@ export default function NetworkingView({
     onSelectCompany(company);
   }
 
-  function handleCheckboxChange(id: string) {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+  function handleCheckboxChange(company: Company) {
+    setSelectedCompanies((prev) => {
+      const next = new Map(prev);
+      if (next.has(company.id)) {
+        next.delete(company.id);
       } else {
-        next.add(id);
+        next.set(company.id, company);
       }
       return next;
     });
   }
 
-  // -------------------------------------------------------------------------
-  // Auto-load on mount
-  // -------------------------------------------------------------------------
+  const allCurrentPageSelected =
+    companies.length > 0 && companies.every((c) => selectedCompanies.has(c.id));
+
+  function handleSelectAll() {
+    if (allCurrentPageSelected) {
+      setSelectedCompanies((prev) => {
+        const next = new Map(prev);
+        companies.forEach((c) => next.delete(c.id));
+        return next;
+      });
+    } else {
+      setSelectedCompanies((prev) => {
+        const next = new Map(prev);
+        companies.forEach((c) => next.set(c.id, c));
+        return next;
+      });
+    }
+  }
+
+  async function handleExport() {
+    if (selectedCompanies.size > 0) {
+      triggerCsvDownload(
+        buildCsvString(Array.from(selectedCompanies.values())),
+        buildExportFilename(),
+      );
+      return;
+    }
+
+    setExportLoading(true);
+    try {
+      const collected: Company[] = [];
+      const currentFilters = filters;
+      const currentLocationSelection = locationSelection;
+
+      const buildParams = (p: number) => {
+        const params = new URLSearchParams();
+        params.set("page",     String(p));
+        params.set("pageSize", String(EXPORT_PAGE_SIZE));
+        addCompanyFilterParams(params, currentFilters, currentLocationSelection);
+        return params;
+      };
+
+      const firstRes = await fetch(`/api/companies?${buildParams(1).toString()}`);
+      if (!firstRes.ok) throw new Error("Erro ao obter página 1");
+      const firstData = (await firstRes.json()) as PaginatedResponse<Company>;
+      collected.push(...firstData.items);
+
+      const serverTotal = Math.min(firstData.total, CSV_EXPORT_LIMIT);
+      const totalPages  = Math.ceil(serverTotal / EXPORT_PAGE_SIZE);
+
+      for (let p = 2; p <= totalPages; p++) {
+        const res = await fetch(`/api/companies?${buildParams(p).toString()}`);
+        if (!res.ok) throw new Error(`Erro ao obter página ${p}`);
+        const data = (await res.json()) as PaginatedResponse<Company>;
+        collected.push(...data.items);
+      }
+
+      triggerCsvDownload(buildCsvString(collected), buildExportFilename());
+    } catch {
+      alert("Não foi possível exportar as empresas. Tente novamente.");
+    } finally {
+      setExportLoading(false);
+    }
+  }
 
   useEffect(() => {
     void fetchCompanies(filters, 1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // -------------------------------------------------------------------------
-  // Pagination calculations
-  // -------------------------------------------------------------------------
+  useEffect(() => {
+    fetch("/api/contacted")
+      .then((r) => r.ok ? r.json() as Promise<{ companyIds: string[] }> : Promise.reject())
+      .then((data) => setContactedIds(new Set(data.companyIds)))
+      .catch(() => {});
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(page * pageSize, total);
   const pageWindow = buildPageWindow(page, totalPages);
+  const municipalityOptions = locationSelection.district
+    ? getMunicipalitiesForDistrict(locationSelection.district)
+    : [];
+  const parishOptions = locationSelection.municipality
+    ? getParishesForMunicipality(locationSelection.municipality)
+    : [];
+  const locationChipText = locationSelection.parish
+    ? `${locationSelection.parish} → ${locationSelection.municipality}`
+    : locationSelection.municipality
+      ? `Concelho: ${locationSelection.municipality}`
+      : locationSelection.district
+        ? `Distrito: ${locationSelection.district}`
+        : "";
 
-  // -------------------------------------------------------------------------
-  // Render
-  // -------------------------------------------------------------------------
+  const hasActiveFilters =
+    Object.entries(filters).some(([key, value]) => key !== "municipality" && value !== "") ||
+    locationSelection.district !== "";
+
+  const selectedList = Array.from(selectedCompanies.values());
+  const emailCount = selectedList.filter(c => c.email !== null).length;
+  const noEmailCount = selectedList.length - emailCount;
+  const websiteCount = selectedList.filter(c => c.hasWebsite).length;
+  const noWebsiteCount = selectedList.length - websiteCount;
+  const hasNoEmailSelected = noEmailCount > 0 && selectedCompanies.size > 0;
 
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
 
-      {/* ── Left sidebar ── */}
-      <aside className="w-64 flex-shrink-0 flex flex-col bg-white border-r border-gray-200 p-4 gap-4">
+      <aside className="w-56 flex-shrink-0 flex flex-col bg-white border-r border-gray-200 p-4 gap-4 overflow-y-auto">
 
-        {/* Section label */}
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-          Ações em Massa
-        </p>
-
-        {/* Selected count */}
-        <p className="text-sm text-gray-600">
-          <span className="font-semibold text-gray-900">{selectedIds.size}</span>{" "}
-          selecionadas
-        </p>
-
-        {/* Bulk action buttons */}
-        <div className="flex flex-col gap-2">
-          <button
-            type="button"
-            disabled
-            className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm font-medium text-gray-400 cursor-not-allowed"
-          >
-            Gerar Emails
-          </button>
-          <button
-            type="button"
-            disabled
-            className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm font-medium text-gray-400 cursor-not-allowed"
-          >
-            Enviar Emails
-          </button>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900">Seleção</span>
+            {selectedCompanies.size > 0 && (
+              <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                {selectedCompanies.size}
+              </span>
+            )}
+          </div>
+          {selectedCompanies.size > 0 && (
+            <button type="button" onClick={() => setSelectedCompanies(new Map())}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              Limpar
+            </button>
+          )}
         </div>
 
-        {/* Tip */}
-        <p className="mt-auto text-xs text-gray-400 leading-relaxed">
-          Selecione empresas na tabela para ações em massa.
-        </p>
+        <button type="button" disabled={companies.length === 0 || loading} onClick={handleSelectAll}
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+          {allCurrentPageSelected ? "Desselecionar" : `Selecionar todas (${companies.length})`}
+        </button>
+
+        <button type="button" disabled={emailCount === 0}
+          onClick={() => onContactar(Array.from(selectedCompanies.values()))}
+          className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2">
+          <IconPaperPlane className="w-4 h-4" />
+          Contactar ({emailCount})
+        </button>
+
+        {selectedCompanies.size > 0 && (
+          <>
+            <hr className="border-gray-100" />
+            <div className="flex flex-col gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Resumo da seleção</p>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Com email</span>
+                <span className="font-medium text-green-600">{emailCount}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Sem email</span>
+                <span className={`font-medium ${noEmailCount > 0 ? "text-red-500" : "text-gray-400"}`}>{noEmailCount}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Com website</span>
+                <span className="font-medium text-gray-700">{websiteCount}</span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">Sem website</span>
+                <span className="font-medium text-gray-700">{noWebsiteCount}</span>
+              </div>
+            </div>
+            {hasNoEmailSelected && (
+              <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2.5 text-xs text-green-700 leading-relaxed">
+                Só serão contactadas empresas com email válido.
+              </div>
+            )}
+          </>
+        )}
       </aside>
 
-      {/* ── Center column ── */}
       <main className="flex-1 flex flex-col overflow-hidden bg-gray-50">
 
-        {/* Filter bar */}
-        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3">
-          <form onSubmit={handleFilter}>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                name="municipality"
-                value={filters.municipality}
-                onChange={handleFilterChange}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-              >
-                <option value="">Município: todos</option>
-                {CITY_NAMES.map((city) => (
-                  <option key={city} value={city}>{city}</option>
-                ))}
-              </select>
-              <select
-                name="category"
-                value={filters.category}
-                onChange={handleFilterChange}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-              >
-                <option value="">Categoria: todas</option>
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-              <select
-                name="specialty"
-                value={filters.specialty}
-                onChange={handleFilterChange}
-                disabled={!filters.category}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <option value="">Especialidade: todas</option>
-                {(SPECIALTIES[filters.category] ?? []).map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              <select
-                name="opportunity"
-                value={filters.opportunity}
-                onChange={handleFilterChange}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-              >
-                <option value="">Todas</option>
-                <option value="NO_WEBSITE">Sem website</option>
-                <option value="WEAK_WEBSITE">Site fraco</option>
-                <option value="NONE">Sem oportunidade</option>
-              </select>
-              <select
-                name="hasWebsite"
-                value={filters.hasWebsite}
-                onChange={handleFilterChange}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-              >
-                <option value="">Website: todos</option>
-                <option value="true">Com website</option>
-                <option value="false">Sem website</option>
-              </select>
-              <select
-                name="hasEmail"
-                value={filters.hasEmail}
-                onChange={handleFilterChange}
-                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors"
-              >
-                <option value="">Email: todos</option>
-                <option value="true">Com email</option>
-                <option value="false">Sem email</option>
-              </select>
-              <button
-                type="submit"
-                className="rounded-lg bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700 active:bg-gray-800 transition-colors"
-              >
-                Aplicar filtros
-              </button>
-              <button
-                type="button"
-                onClick={handleClearFilters}
-                className="rounded-lg border border-gray-200 bg-white px-4 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 active:bg-gray-100 transition-colors"
-              >
-                Limpar
-              </button>
-            </div>
-          </form>
-        </div>
-
-        {/* Results header */}
-        <div className="flex-shrink-0 px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">
-              Empresas encontradas
-            </span>
-            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
-              {total}
-            </span>
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Networking</h1>
+            <p className="text-sm text-gray-500 mt-0.5">Encontre e contacte empresas relevantes para o seu negócio.</p>
           </div>
-          <button
-            type="button"
-            onClick={handleClearFilters}
-            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
-          >
-            Limpar filtros
+          <button type="button" onClick={() => void handleExport()}
+            disabled={exportLoading || (total === 0 && selectedCompanies.size === 0)}
+            className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            {exportLoading ? "A exportar..." : selectedCompanies.size > 0
+              ? `Exportar (${selectedCompanies.size})`
+              : `Exportar (${Math.min(total, CSV_EXPORT_LIMIT)})`}
           </button>
         </div>
 
-        {/* Table */}
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3">
+          <div className="flex flex-wrap items-center gap-2">
+
+            <select
+              value={locationSelection.district}
+              onChange={(e) => handleDistrictChange(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
+              <option value="">Distrito</option>
+              {DISTRICT_OPTIONS.map((district) => (
+                <option key={district.name} value={district.name}>{district.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={locationSelection.municipality}
+              disabled={!locationSelection.district}
+              onChange={(e) => handleMunicipalityChange(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              <option value="">Concelho</option>
+              {municipalityOptions.map((municipality) => (
+                <option key={municipality} value={municipality}>{municipality}</option>
+              ))}
+            </select>
+
+            <select
+              value={locationSelection.parish}
+              disabled={!locationSelection.municipality || parishOptions.length === 0}
+              onChange={(e) => handleParishChange(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              <option value="">Freguesia</option>
+              {parishOptions.map((parish) => (
+                <option key={parish} value={parish}>{parish}</option>
+              ))}
+            </select>
+
+            <select name="category" value={filters.category}
+              onChange={(e) => handleInstantFilterChange("category", e.target.value)}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
+              <option value="">Categoria</option>
+              {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
+            </select>
+
+            <select name="specialty" value={filters.specialty}
+              disabled={!filters.category}
+              onChange={(e) => handleInstantFilterChange("specialty", e.target.value)}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+              <option value="">Especialidade</option>
+              {(SPECIALTIES[filters.category] ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+<div className="flex items-center">
+              <span className="text-xs text-gray-500 mr-2">Website</span>
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                {(["", "true", "false"] as const).map((val, i) => (
+                  <button key={val} type="button"
+                    onClick={() => handleInstantFilterChange("hasWebsite", val)}
+                    className={`px-2.5 py-1.5 font-medium transition-colors ${i < 2 ? "border-r border-gray-200" : ""} ${
+                      filters.hasWebsite === val ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}>
+                    {val === "" ? "Todos" : val === "true" ? "Sim" : "Não"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center">
+              <span className="text-xs text-gray-500 mr-2">Email</span>
+              <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
+                {(["", "true", "false"] as const).map((val, i) => (
+                  <button key={val} type="button"
+                    onClick={() => handleInstantFilterChange("hasEmail", val)}
+                    className={`px-2.5 py-1.5 font-medium transition-colors ${i < 2 ? "border-r border-gray-200" : ""} ${
+                      filters.hasEmail === val ? "bg-blue-600 text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                    }`}>
+                    {val === "" ? "Todos" : val === "true" ? "Sim" : "Não"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        {hasActiveFilters && (
+          <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-2 flex items-center gap-2 flex-wrap">
+            {locationChipText && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                {locationChipText}
+                <button type="button" onClick={handleClearLocationFilter}
+                  className="ml-0.5 hover:text-blue-900 transition-colors">×</button>
+              </span>
+            )}
+            {(Object.entries(filters) as [keyof NetworkingFilters, string][])
+              .filter(([key, value]) => key !== "municipality" && value !== "")
+              .map(([key, value]) => {
+                const labelFn = FILTER_LABELS[key];
+                if (!labelFn) return null;
+                return (
+                  <span key={key} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                    {labelFn(value)}
+                    <button type="button" onClick={() => handleRemoveChip(key)}
+                      className="ml-0.5 hover:text-blue-900 transition-colors">×</button>
+                  </span>
+                );
+              })}
+            <button type="button" onClick={handleClearFilters}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Limpar filtros
+            </button>
+            <span className="ml-auto text-xs text-gray-500">{total} empresas encontradas</span>
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto">
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-gray-100 z-10">
               <tr>
-                <th className="w-10 px-4 py-2.5" />
-                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">
-                  Empresa
+                <th className="w-10 px-4 py-2.5">
+                  <input type="checkbox"
+                    checked={allCurrentPageSelected}
+                    disabled={companies.length === 0}
+                    onChange={handleSelectAll}
+                    className="rounded border-gray-300" />
                 </th>
-                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">
-                  Categoria
-                </th>
-                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">
-                  Município
-                </th>
-                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">
-                  Oportunidade
-                </th>
-                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">
-                  Website
-                </th>
-                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">
-                  Email
-                </th>
-                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">
-                  Telefone
-                </th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Empresa</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Categoria</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Concelho</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Website</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Email</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Telefone</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
                     A carregar...
                   </td>
                 </tr>
               ) : error !== null ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-red-500">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-red-500">
                     {error}
                   </td>
                 </tr>
               ) : companies.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
                     Nenhuma empresa encontrada. Ajuste os filtros.
                   </td>
                 </tr>
               ) : (
                 companies.map((company) => (
-                  <tr
-                    key={company.id}
-                    onClick={() => handleRowClick(company)}
-                    className={`cursor-pointer hover:bg-blue-50 border-b border-gray-100 transition-colors ${
-                      selectedCompany?.id === company.id
-                        ? "bg-blue-50 ring-1 ring-inset ring-blue-200"
-                        : ""
-                    }`}
-                  >
-                    {/* Checkbox */}
-                    <td
-                      className="px-4 py-3"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        aria-label={`Selecionar ${company.name}`}
-                        checked={selectedIds.has(company.id)}
-                        onChange={() => handleCheckboxChange(company.id)}
-                        className="rounded border-gray-300"
-                      />
-                    </td>
-
-                    {/* Company name with avatar */}
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center">
-                          <span className="text-xs font-bold text-blue-500">
-                            {companyInitials(company.name)}
-                          </span>
+                    <tr key={company.id} onClick={() => handleRowClick(company)}
+                      className={`cursor-pointer hover:bg-blue-50 border-b border-gray-100 transition-colors ${
+                        selectedCompany?.id === company.id ? "bg-blue-50 ring-1 ring-inset ring-blue-200" : ""
+                      }`}>
+                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" aria-label={`Selecionar ${company.name}`}
+                          checked={selectedCompanies.has(company.id)}
+                          onChange={() => handleCheckboxChange(company)}
+                          className="rounded border-gray-300" />
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full ${avatarColor(company.name)} flex items-center justify-center`}>
+                            <span className="text-xs font-bold text-white">{companyInitials(company.name)}</span>
+                          </div>
+                          <span className="font-medium text-gray-900 truncate max-w-[140px]">{company.name}</span>
+                          {contactedIds.has(company.id) && (
+                            <span className="flex-shrink-0 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                              Contactado
+                            </span>
+                          )}
                         </div>
-                        <span className="font-medium text-gray-900 truncate max-w-[180px]">
-                          {company.name}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* Category */}
-                    <td className="px-4 py-3 text-gray-600 max-w-[140px] truncate">
-                      {company.category}
-                    </td>
-
-                    {/* Municipality */}
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                      {company.municipality ?? "—"}
-                    </td>
-
-                    {/* Opportunity badge */}
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${opportunityColor(company.opportunity)}`}
-                      >
-                        {opportunityLabel(company.opportunity)}
-                      </span>
-                    </td>
-
-                    {/* Has website */}
-                    <td className="px-4 py-3">
-                      {company.hasWebsite ? (
-                        <span className="text-green-600 font-semibold" aria-label="Tem website">
-                          ✓
-                        </span>
-                      ) : (
-                        <span className="text-red-400 font-semibold" aria-label="Sem website">
-                          ✗
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Has email */}
-                    <td className="px-4 py-3">
-                      {company.email !== null ? (
-                        <span className="text-green-600 font-semibold" aria-label="Tem email">
-                          ✓
-                        </span>
-                      ) : (
-                        <span className="text-red-400 font-semibold" aria-label="Sem email">
-                          ✗
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Phone */}
-                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
-                      {company.phoneNumber ?? "—"}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 max-w-[140px] truncate">{company.category}</td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{company.municipality ?? "—"}</td>
+                      <td className="px-4 py-3">
+                        {company.hasWebsite
+                          ? <span className="text-green-600 font-semibold">✓</span>
+                          : <span className="text-red-400 font-semibold">✗</span>}
+                      </td>
+                      <td className="px-4 py-3">
+                        {company.email !== null
+                          ? <span className="text-green-600 font-semibold">✓</span>
+                          : <span className="text-red-400 font-semibold">✗</span>}
+                      </td>
+                      <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{company.phoneNumber ?? "—"}</td>
+                    </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
 
-        {/* Pagination controls */}
         <div className="flex-shrink-0 px-6 py-3 border-t border-gray-200 bg-white flex items-center justify-between gap-4">
-          {/* Range label */}
           <span className="text-sm text-gray-500 whitespace-nowrap">
-            {total === 0
-              ? "Nenhuma empresa"
-              : `Mostrando ${start} a ${end} de ${total} empresas`}
+            {total === 0 ? "Nenhuma empresa" : `Mostrando ${start} a ${end} de ${total} empresas`}
           </span>
-
-          {/* Page buttons */}
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -514,13 +691,9 @@ export default function NetworkingView({
             >
               ←
             </button>
-
             {pageWindow.map((item, idx) =>
               item === "..." ? (
-                <span
-                  key={`ellipsis-${idx}`}
-                  className="px-2 py-1.5 text-sm text-gray-400 select-none"
-                >
+                <span key={`ellipsis-${idx}`} className="px-2 py-1.5 text-sm text-gray-400 select-none">
                   ...
                 </span>
               ) : (
@@ -541,7 +714,6 @@ export default function NetworkingView({
                 </button>
               ),
             )}
-
             <button
               type="button"
               onClick={() => handlePageChange(page + 1)}
@@ -552,7 +724,14 @@ export default function NetworkingView({
               →
             </button>
           </div>
+          <select value={pageSize} onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+            className="rounded-lg border border-gray-200 bg-gray-50 px-2 py-1.5 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
+            <option value={20}>20 por página</option>
+            <option value={50}>50 por página</option>
+            <option value={100}>100 por página</option>
+          </select>
         </div>
+
       </main>
     </div>
   );

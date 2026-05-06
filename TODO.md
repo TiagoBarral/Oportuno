@@ -6,10 +6,11 @@ Tracks known gaps, deferred decisions, and limitations. Not bugs (see `_private/
 
 ## Setup
 
-- [ ] Fill in `ANTHROPIC_API_KEY` in `app/.env.local`
-- [ ] Fill in `RESEND_API_KEY` in `app/.env.local`
-- [ ] Fill in `RESEND_FROM_ADDRESS` in `app/.env.local`
-- [ ] Fill in `GOOGLE_API_KEY` in `app/.env.local`
+- [ ] Verify `app/.env.local` contains valid `DATABASE_URL`, `ANTHROPIC_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_ADDRESS`, and `GOOGLE_API_KEY` without exposing secret values
+- [ ] Add/configure `CRON_SECRET` before using the pipeline worker outside local development
+- [ ] Confirm `USE_MOCK_AI` is set intentionally for local testing (`true` for mocked AI, unset/false for real AI calls)
+- [ ] Choose a deployment host (Vercel or similar) and configure runtime env vars there before first deployment
+- [ ] Keep `app/.env.example` synced with required env var names, using empty placeholder values only
 - [ ] Verify Resend sender domain (required before emails can be delivered)
 - [ ] Set up branch protection on `main` in GitHub (require PR, no direct push)
 - [ ] Set a hard budget cap on the Google Cloud project
@@ -34,7 +35,10 @@ Tracks known gaps, deferred decisions, and limitations. Not bugs (see `_private/
 Items to debate and plan before deploying to a real environment. Not prioritized yet.
 
 **Security**
+- [ ] Authentication on API routes — all routes are currently unauthenticated; `/api/email/send` and `/api/email/generate-template` can be called by any HTTP client to send emails or consume Anthropic budget; add session or shared-secret auth before any public deployment
 - [ ] Rate limiting on `/api/pipeline` and `/api/email/send` — pipeline calls Google Places (costs money per call), send route can be abused
+- [ ] Server-side companyId verification in bulk send — bulk path does not verify each companyId exists in the DB (single-send path does); add a `prisma.company.findMany({ where: { id: { in: ids } } })` check before dispatching
+- [ ] Scrub internal error messages from API responses — Prisma, Resend, and Anthropic SDK errors are currently returned verbatim; map to generic user-facing strings in production
 - [ ] Input validation with a schema library (e.g. Zod) — currently parsing query params and request bodies manually with no enforcement
 - [ ] Scrub internal errors before API responses — stack traces must not reach the client in production
 - [ ] GDPR deletion endpoint — data retention policy and a mechanism to delete a company's data on request (legitimate interest basis requires this)
@@ -45,6 +49,7 @@ Items to debate and plan before deploying to a real environment. Not prioritized
 - [ ] Polling condition — polling only starts when a new job is created (`queued === true`); a returning user whose existing job is PENDING or FAILED gets no feedback. Change the condition to `jobData.status !== "DONE"`.
 
 **Reliability**
+- [ ] `sendEmail` split-brain on DB failure — if Resend succeeds but `prisma.emailLog.create` throws, `sendBulkEmails` records the send as failed and the user may re-send; fix by separating the Resend call from the log write and handling DB failure independently
 - [ ] Environment variable validation at startup — app currently boots silently with missing keys and fails at runtime; should fail fast with a clear message
 - [ ] Prisma global client singleton — Next.js serverless can exhaust DB connections without the `globalThis` singleton pattern; verify current `lib/prisma.ts` handles this
 - [ ] Health check endpoint (`GET /api/health`) — required by most deployment platforms to verify the app is alive
@@ -63,6 +68,17 @@ Items to debate and plan before deploying to a real environment. Not prioritized
 **Deployment**
 - [ ] Decide and document deployment target — Railway, Vercel, or a managed PostgreSQL host; decision affects connection pooling, env var management, and cold starts
 - [ ] Database backup strategy — document how the PostgreSQL database will be backed up in production
+
+## AI Dev Workflow — Cost and Efficiency
+
+Based on session analysis ($100 / 4-day session, 93% at >150k context):
+
+- [ ] **Use `/compact` mid-session** — when switching features or after a long feature completes, run `/compact` to reduce context size. Long context is expensive even when cached.
+- [ ] **Use `/clear` between unrelated tasks** — starting a new topic on a 150k+ context session costs significantly more than starting fresh.
+- [ ] **Cap session length** — sessions active 8+ hours accumulate cost continuously. Break work into daily sessions with a `/clear` between them.
+- [ ] **Be deliberate about subagents** — each `/feature` flow spawns architect + frontend-engineer + code-reviewer + security-auditor. For small changes, skip the skill and implement directly. Reserve `/feature` for features that genuinely need the planning phases.
+- [ ] **Configure cheaper model for simpler subagents** — code-reviewer and architect tasks could run on a cheaper model. Check if Claude Code supports per-agent model config in settings.json.
+- [ ] **Batch small changes** — UI tweaks, copy changes, and single-file fixes don't need a full `/feature` flow. Group them and implement directly to avoid spawning multiple subagents for trivial work.
 
 ---
 
