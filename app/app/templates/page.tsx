@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import AppShell from "../components/AppShell";
-import { IconSparkle } from "../components/shared";
+import { IconSparkle, IconDocument } from "../components/shared";
 import type { EmailTemplate } from "../types";
 
 const dateFormatter = new Intl.DateTimeFormat("pt-PT", {
@@ -16,6 +16,12 @@ const TOM_LABELS: Record<string, string> = {
   profissional: "Profissional",
   amigavel: "Amigável",
   direto: "Direto",
+};
+
+const TOM_COLORS: Record<string, string> = {
+  profissional: "bg-blue-50 text-blue-700",
+  amigavel: "bg-green-50 text-green-700",
+  direto: "bg-orange-50 text-orange-700",
 };
 
 export default function TemplatesPage() {
@@ -97,92 +103,103 @@ export default function TemplatesPage() {
               </Link>
             </div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-100">
-                  <tr>
-                    <th className="px-5 py-3 text-left font-semibold text-gray-600">Nome</th>
-                    <th className="px-5 py-3 text-left font-semibold text-gray-600">Assunto</th>
-                    <th className="px-5 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">Tom</th>
-                    <th className="px-5 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">Criado em</th>
-                    <th className="w-24 px-5 py-3" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {templates.map((t) => (
-                    <>
-                      <tr
-                        key={t.id}
-                        onClick={() => setExpandedId((prev) => prev === t.id ? null : t.id)}
-                        className="cursor-pointer hover:bg-blue-50 transition-colors"
-                      >
-                        <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <svg
-                              className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${expandedId === t.id ? "rotate-90" : ""}`}
-                              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                            </svg>
-                            {t.name}
-                          </div>
-                        </td>
-                        <td className="px-5 py-3 text-gray-600 max-w-xs truncate">{t.subject}</td>
-                        <td className="px-5 py-3 text-gray-500 whitespace-nowrap">
-                          {TOM_LABELS[t.tom] ?? t.tom}
-                        </td>
-                        <td className="px-5 py-3 text-gray-500 whitespace-nowrap">
-                          {dateFormatter.format(new Date(t.createdAt))}
-                        </td>
-                        <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            disabled={deletingId === t.id}
-                            onClick={() => void handleDelete(t.id)}
-                            className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-                          >
-                            {deletingId === t.id ? "A eliminar..." : "Eliminar"}
-                          </button>
-                        </td>
-                      </tr>
+            <div className="flex flex-col gap-3">
+              {templates.map((t) => (
+                <div key={t.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
 
-                      {expandedId === t.id && (
-                        <tr key={`${t.id}-detail`} className="bg-blue-50">
-                          <td colSpan={5} className="px-5 py-5">
-                            <div className="grid grid-cols-2 gap-6">
+                  {/* Row header */}
+                  <div
+                    onClick={() => setExpandedId((prev) => prev === t.id ? null : t.id)}
+                    className="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
+                  >
+                    {/* Chevron */}
+                    <svg
+                      className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${expandedId === t.id ? "rotate-90" : ""}`}
+                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                    </svg>
 
-                              {/* Left: brief fields */}
-                              <div className="flex flex-col gap-3">
-                                <div>
-                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">O que ofereço</p>
-                                  <p className="text-sm text-gray-700">{t.oferta}</p>
-                                </div>
-                                {t.instrucoesAdicionais && (
-                                  <div>
-                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Instruções adicionais</p>
-                                    <p className="text-sm text-gray-700">{t.instrucoesAdicionais}</p>
-                                  </div>
-                                )}
-                                <div>
-                                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Assunto</p>
-                                  <p className="text-sm text-gray-700">{t.subject}</p>
-                                </div>
-                              </div>
+                    {/* Name */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900">{t.name}</p>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">{t.subject}</p>
+                    </div>
 
-                              {/* Right: email body */}
-                              <div>
-                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Corpo do email</p>
-                                <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{t.body}</p>
-                              </div>
+                    {/* Tom badge */}
+                    <span className={`flex-shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium ${TOM_COLORS[t.tom] ?? "bg-gray-100 text-gray-600"}`}>
+                      {TOM_LABELS[t.tom] ?? t.tom}
+                    </span>
 
+                    {/* Date */}
+                    <span className="flex-shrink-0 text-xs text-gray-400 whitespace-nowrap">
+                      {dateFormatter.format(new Date(t.createdAt))}
+                    </span>
+
+                    {/* Delete */}
+                    <button
+                      type="button"
+                      disabled={deletingId === t.id}
+                      onClick={(e) => { e.stopPropagation(); void handleDelete(t.id); }}
+                      className="flex-shrink-0 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {deletingId === t.id ? "A eliminar..." : "Eliminar"}
+                    </button>
+                  </div>
+
+                  {/* Expanded content */}
+                  {expandedId === t.id && (
+                    <div className="border-t border-gray-100 bg-gray-50 px-5 py-5">
+                      <div className="grid grid-cols-2 gap-6">
+
+                        {/* Left: brief metadata */}
+                        <div className="flex flex-col gap-4">
+
+                          <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Briefing</p>
+
+                            <div>
+                              <p className="text-xs font-medium text-gray-500 mb-0.5">O que ofereço</p>
+                              <p className="text-sm text-gray-800">{t.oferta}</p>
                             </div>
-                          </td>
-                        </tr>
-                      )}
-                    </>
-                  ))}
-                </tbody>
-              </table>
+
+                            {t.instrucoesAdicionais && (
+                              <div>
+                                <p className="text-xs font-medium text-gray-500 mb-0.5">Instruções adicionais</p>
+                                <p className="text-sm text-gray-800">{t.instrucoesAdicionais}</p>
+                              </div>
+                            )}
+
+                            {t.contextFileName && (
+                              <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+                                <IconDocument className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-medium text-blue-700 truncate">{t.contextFileName}</p>
+                                  <p className="text-xs text-blue-400">Ficheiro de contexto usado na geração</p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="bg-white rounded-xl border border-gray-200 p-4">
+                            <p className="text-xs font-medium text-gray-500 mb-0.5">Assunto</p>
+                            <p className="text-sm font-medium text-gray-800">{t.subject}</p>
+                          </div>
+
+                        </div>
+
+                        {/* Right: email body */}
+                        <div className="bg-white rounded-xl border border-gray-200 p-4 flex flex-col gap-3">
+                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Corpo do email</p>
+                          <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{t.body}</p>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              ))}
             </div>
           )}
 

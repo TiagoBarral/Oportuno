@@ -92,6 +92,7 @@ export interface EmailTemplate {
   oferta: string;
   tom: "profissional" | "amigavel" | "direto";
   instrucoesAdicionais: string | null;
+  contextFileName: string | null;
   createdAt: string;
   updatedAt: string;
 }

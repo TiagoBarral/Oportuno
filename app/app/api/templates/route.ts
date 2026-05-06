@@ -79,6 +79,10 @@ export async function POST(request: Request): Promise<NextResponse> {
           typeof raw.instrucoesAdicionais === "string" && raw.instrucoesAdicionais.trim() !== ""
             ? raw.instrucoesAdicionais.trim()
             : null,
+        contextFileName:
+          typeof raw.contextFileName === "string" && raw.contextFileName.trim() !== ""
+            ? raw.contextFileName.trim()
+            : null,
       },
     });
     return NextResponse.json(template, { status: 201 });

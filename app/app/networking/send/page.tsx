@@ -252,6 +252,7 @@ export default function BulkSendPage() {
           oferta: brief.oferta,
           tom: brief.tom,
           instrucoesAdicionais: brief.instrucoesAdicionais ?? null,
+          contextFileName: contextFile?.filename ?? null,
         }),
       });
       const data = (await res.json()) as { error?: string };
