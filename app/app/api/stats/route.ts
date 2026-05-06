@@ -4,30 +4,19 @@ import type { StatsResponse } from "@/app/types";
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const [totalCompanies, recentJobs] = await Promise.all([
+    const [totalCompanies, withEmail, withWebsite, withPhone] = await Promise.all([
       prisma.company.count(),
-      prisma.pipelineJob.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 5,
-        include: {
-          companies: {
-            where: { companyId: { not: null } },
-            select: { id: true },
-          },
-        },
-      }),
+      prisma.company.count({ where: { email: { not: null } } }),
+      prisma.company.count({ where: { hasWebsite: true } }),
+      prisma.company.count({ where: { phoneNumber: { not: null } } }),
     ]);
 
     const response: StatsResponse = {
       totalCompanies,
-      recentSearches: recentJobs.map((job) => ({
-        id: job.id,
-        industry: job.industry,
-        location: job.location,
-        status: job.status,
-        companyCount: job.companies.length,
-        createdAt: job.createdAt.toISOString(),
-      })),
+      withEmail,
+      withWebsite,
+      withPhone,
+      recentSearches: [],
     };
 
     return NextResponse.json(response, { status: 200 });

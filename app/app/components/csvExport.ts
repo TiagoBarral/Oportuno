@@ -1,5 +1,4 @@
 import type { Company } from "../types";
-import { opportunityLabel } from "./shared";
 
 export const CSV_EXPORT_LIMIT  = 5000;
 export const EXPORT_PAGE_SIZE  = 500;
@@ -17,8 +16,7 @@ const CSV_COLUMNS: CsvColumn[] = [
   { header: "Nome",         getValue: (c) => c.name },
   { header: "Categoria",    getValue: (c) => c.category },
   { header: "Especialidade", getValue: (c) => c.specialty },
-  { header: "Município",    getValue: (c) => c.municipality ?? "" },
-  { header: "Oportunidade", getValue: (c) => opportunityLabel(c.opportunity) },
+  { header: "Concelho",     getValue: (c) => c.municipality ?? "" },
   { header: "Website",      getValue: (c) => c.websiteUrl ?? "" },
   { header: "Email",        getValue: (c) => c.email ?? "" },
   { header: "Telefone",     getValue: (c) => c.phoneNumber ?? "" },
