@@ -61,6 +61,8 @@ model Company {
   @@index([category])
   @@index([specialty])
   @@index([municipality])
+  @@index([email])
+  @@index([phoneNumber])
 }
 
 model PipelineJob {
@@ -106,4 +108,12 @@ model EmailLog {
   createdAt DateTime    @default(now())
 
   company   Company     @relation(fields: [companyId], references: [id])
+
+  @@index([createdAt])
+}
+
+model UserSettings {
+  id          String @id @default("singleton")
+  senderName  String
+  senderEmail String
 }
