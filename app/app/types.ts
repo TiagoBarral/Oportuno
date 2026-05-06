@@ -50,5 +50,70 @@ export interface RecentSearch {
 
 export interface StatsResponse {
   totalCompanies: number;
-  recentSearches: RecentSearch[];
+  withEmail: number;
+  withWebsite: number;
+  withPhone: number;
+  recentSearches?: RecentSearch[];
+}
+
+export interface EmailLogEntry {
+  id: string;
+  companyId: string;
+  companyName: string;
+  municipality: string | null;
+  category: string;
+  email: string;
+  subject: string;
+  body: string;
+  status: "SENT" | "FAILED";
+  createdAt: string;
+}
+
+export interface HistoricoMeta {
+  totalSent: number;
+  totalFailed: number;
+  sentThisMonth: number;
+}
+
+export interface HistoricoResponse extends PaginatedResponse<EmailLogEntry> {
+  meta: HistoricoMeta;
+}
+
+export interface UserSettings {
+  senderName: string | null;
+  senderEmail: string | null;
+}
+
+export interface EmailAttachment {
+  filename: string;
+  content: string; // base64-encoded file content
+}
+
+export interface AIContextFile {
+  type: "txt" | "pdf";
+  filename: string;
+  content: string; // plain text for TXT, base64 for PDF
+}
+
+export interface BulkEmailTemplateBrief {
+  oferta: string;
+  tom: "profissional" | "amigavel" | "direto";
+  instrucoesAdicionais?: string;
+}
+
+export interface BulkSendRecipient {
+  companyId: string;
+  name: string;
+  municipality: string | null;
+  category: string;
+  email: string;
+}
+
+export interface BulkSendResult {
+  companyId: string;
+  name: string;
+  email: string;
+  success: boolean;
+  emailLogId?: string;
+  error?: string;
 }

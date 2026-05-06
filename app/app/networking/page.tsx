@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import type { Company, NetworkingFilters } from "../types";
 import AppShell from "../components/AppShell";
 import NetworkingView from "../components/NetworkingView";
@@ -49,6 +49,7 @@ export default function NetworkingPage() {
 // ---------------------------------------------------------------------------
 
 function NetworkingContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
 
   const categoryParam    = searchParams.get("category");
@@ -70,6 +71,11 @@ function NetworkingContent() {
     generating: false,
     sending: false,
   });
+
+  function handleContactar(companies: Company[]) {
+    sessionStorage.setItem("oportuno_bulk_selection", JSON.stringify(companies));
+    router.push("/networking/send");
+  }
 
   function handleSelectCompany(company: Company) {
     setSelectedCompany(company);
@@ -149,6 +155,7 @@ function NetworkingContent() {
           key={viewKey}
           selectedCompany={selectedCompany}
           onSelectCompany={handleSelectCompany}
+          onContactar={handleContactar}
           initialFilters={initialFilters}
         />
         {selectedCompany !== null && (
