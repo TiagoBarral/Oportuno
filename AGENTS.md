@@ -4,7 +4,7 @@
 
 - This repository contains ONLY application code
 - AI tooling and agents are external (AIAssist)
-- Claude must operate on this project using that external system
+- Codex must operate on this project using that external system
 - Do NOT recreate or embed tooling inside this repo
 
 ---
@@ -118,7 +118,7 @@ The AI dev team lives at: `d:\PERSONAL\AIAssist\ai-dev-framework`
 
 This is a separate repo used as a personal AI dev team across all projects. It provides skills (interactive workflows), agents (specialist executors), and documentation. Do NOT recreate any of this tooling inside Oportuno.
 
-Full docs: `d:\PERSONAL\AIAssist\ai-dev-framework\.claude\docs\`
+Full docs: `d:\PERSONAL\AIAssist\ai-dev-framework\.Codex\docs\`
 Agent manifest: `d:\PERSONAL\AIAssist\ai-dev-framework\AGENTS.md`
 
 ---
@@ -219,25 +219,6 @@ For every task:
 4. For tiny low-risk edits, direct implementation is allowed, but still follow this file's git, build, test, changelog, and safety rules
 
 Do not add process when it does not protect the app, but do not bypass AIAssist when the work is ambiguous or risky.
-
-### Branch rule — enforced without exception
-
-**Before writing a single line of code for any feature or fix, create a branch.**
-
-```
-git checkout -b feat/short-description   # new feature
-git checkout -b fix/short-description    # bug fix
-git checkout -b chore/short-description  # maintenance
-```
-
-This is not optional and not skippable. If you are mid-session and realise no branch was created, stop, create the branch, then continue. Never accumulate multiple features on the same branch. Never commit directly to `main` except for docs/typo fixes as defined in the Git Workflow section.
-
-**At the end of every `/development` or `/bugfix` flow**, before asking the user to proceed:
-1. Run `bun tsc --noEmit` — must be clean
-2. Commit all changes with a meaningful message on the feature branch
-3. Confirm the branch name and commit to the user
-
-Failure to create a branch before coding is one of the most repeated mistakes in this project. There is no excuse for skipping it.
 
 ---
 
@@ -460,7 +441,7 @@ Optional, but useful when the work revealed a better future process.
 ## Priority
 
 If any instruction conflicts:
-1. CLAUDE.md rules override everything
+1. AGENTS.md rules override everything
 2. Simplicity over complexity
 3. Do not invent features
 

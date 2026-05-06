@@ -11,11 +11,13 @@ This project uses [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **CSV export in Networking view**: "Exportar" button in the results header downloads all companies matching the current active filters as a UTF-8 CSV file (`oportuno-empresas-YYYY-MM-DD.csv`). If rows are selected, exports only the selected companies (tracked across pages). Columns: Nome, Categoria, Especialidade, Município, Oportunidade, Website, Email, Telefone, Endereço. Capped at 5 000 rows.
+- **CSV export in Networking view**: "Exportar" button in the results header downloads all companies matching the current active filters as a UTF-8 CSV file (`oportuno-empresas-YYYY-MM-DD.csv`). If rows are selected, exports only the selected companies (tracked across pages). Columns: Nome, Categoria, Especialidade, Concelho, Website, Email, Telefone, Endereço. Capped at 5 000 rows.
 
 ### Changed
 
 - **Company selection in Networking** now tracks full Company objects across pages (previously only tracked IDs on the current page). Navigating between pages preserves selections; applying or clearing filters resets them.
+- **Networking location filter** now uses cascading Distrito, Concelho, and optional Freguesia selectors instead of one flat location dropdown. Selecting only a distrito filters by all supported concelhos in that distrito; selecting a freguesia keeps the parent concelho filter and labels it clearly.
+- **Networking results** no longer show the `Oportunidade` column; website and email filters carry that decision-making signal more directly.
 
 ---
 
