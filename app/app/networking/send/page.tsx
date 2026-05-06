@@ -323,20 +323,6 @@ export default function BulkSendPage() {
             <p className="text-sm text-gray-500">
               Escreva uma mensagem ou use a IA para gerar um email personalizado.
             </p>
-            {senderSettings !== null && (
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-400">
-                <span>A enviar como:</span>
-                {senderSettings.senderName && senderSettings.senderEmail ? (
-                  <span className="font-medium text-gray-600">
-                    {senderSettings.senderName} &lt;{senderSettings.senderEmail}&gt;
-                  </span>
-                ) : (
-                  <Link href="/definicoes" className="text-blue-600 hover:underline font-medium">
-                    Configurar remetente →
-                  </Link>
-                )}
-              </div>
-            )}
           </div>
           <Link
             href="/networking"
@@ -506,6 +492,31 @@ export default function BulkSendPage() {
           <main className="flex-1 overflow-y-auto bg-gray-50">
             {results === null ? (
               <div className="p-6 flex flex-col gap-5">
+
+                {/* De: sender field */}
+                <div className="rounded-xl border border-gray-200 bg-white p-4 flex items-center gap-3">
+                  <span className="text-sm font-semibold text-gray-500 w-8 flex-shrink-0">De:</span>
+                  {senderSettings === null ? (
+                    <span className="text-sm text-gray-400">A carregar...</span>
+                  ) : senderSettings.senderName && senderSettings.senderEmail ? (
+                    <>
+                      <span className="text-sm text-gray-800 flex-1">
+                        <span className="font-medium">{senderSettings.senderName}</span>
+                        <span className="text-gray-400 ml-1">&lt;{senderSettings.senderEmail}&gt;</span>
+                      </span>
+                      <Link href="/definicoes" className="flex-shrink-0 text-xs text-blue-600 hover:underline">
+                        Alterar
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-sm text-amber-600 flex-1">Remetente não configurado</span>
+                      <Link href="/definicoes" className="flex-shrink-0 text-xs font-medium text-blue-600 hover:underline">
+                        Configurar →
+                      </Link>
+                    </>
+                  )}
+                </div>
 
                 <div className="rounded-xl border border-gray-200 bg-white p-5">
                   <div className="flex items-center justify-between mb-3">
