@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { Company } from "../types";
 import { CITY_NAMES } from "@/lib/cities";
+import { getSynonymSuggestions } from "@/lib/synonyms";
 import {
   opportunityLabel,
   opportunityColor,
@@ -54,11 +55,42 @@ export default function DiscoverView({
   const [locationSuggestions, setLocationSuggestions] = useState<string[]>([]);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
 
+  const [existingCount, setExistingCount] = useState<number | null>(null);
+  const [synonyms, setSynonyms] = useState<string[]>([]);
+  const countDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const isMounted = useRef(true);
   useEffect(() => {
     isMounted.current = true;
     return () => { isMounted.current = false; };
   }, []);
+
+  useEffect(() => {
+    if (!discoveryIndustry.trim() || !discoveryLocation.trim()) {
+      setExistingCount(null);
+      setSynonyms([]);
+      if (countDebounceRef.current) clearTimeout(countDebounceRef.current);
+      return;
+    }
+
+    setSynonyms(getSynonymSuggestions(discoveryIndustry));
+
+    if (countDebounceRef.current) clearTimeout(countDebounceRef.current);
+    countDebounceRef.current = setTimeout(() => {
+      const params = new URLSearchParams({
+        industry: discoveryIndustry.trim(),
+        location: discoveryLocation.trim(),
+      });
+      fetch(`/api/companies/count?${params.toString()}`)
+        .then((r) => r.ok ? r.json() as Promise<{ count: number }> : Promise.reject())
+        .then((data) => setExistingCount(data.count))
+        .catch(() => setExistingCount(null));
+    }, 500);
+
+    return () => {
+      if (countDebounceRef.current) clearTimeout(countDebounceRef.current);
+    };
+  }, [discoveryIndustry, discoveryLocation]);
 
   // -------------------------------------------------------------------------
   // Handlers
@@ -282,6 +314,30 @@ export default function DiscoverView({
               </ul>
             )}
           </div>
+
+          {existingCount !== null && (
+            <p className="text-xs text-gray-400">
+              {existingCount === 0
+                ? "Nenhuma empresa ainda para esta pesquisa."
+                : `Já tem ${existingCount} empresa${existingCount !== 1 ? "s" : ""} para "${discoveryIndustry.trim()} em ${discoveryLocation.trim()}".`}
+            </p>
+          )}
+
+          {synonyms.length > 0 && !loading.pipeline && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-400">Experimente também:</span>
+              {synonyms.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setDiscoveryIndustry(s)}
+                  className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-600 hover:bg-blue-100 hover:text-blue-700 transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Discover button */}
           <button

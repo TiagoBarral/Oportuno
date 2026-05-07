@@ -125,6 +125,15 @@ export async function markCompanyFailed(
   });
 }
 
+export async function getKnownCompanyMap(placeIds: string[]): Promise<Map<string, string>> {
+  if (placeIds.length === 0) return new Map();
+  const rows = await prisma.company.findMany({
+    where: { placeId: { in: placeIds } },
+    select: { placeId: true, id: true },
+  });
+  return new Map(rows.map((r) => [r.placeId, r.id]));
+}
+
 export async function getJobProgress(jobId: string) {
   const job = await prisma.pipelineJob.findUnique({ where: { id: jobId } });
   if (!job) return null;

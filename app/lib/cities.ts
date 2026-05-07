@@ -165,3 +165,16 @@ export function canonicaliseMunicipality(raw: string): string | null {
   return canonical;
 }
 
+export function computeGridPoints(lat: number, lng: number, spreadKm: number): LatLng[] {
+  if (spreadKm <= 0) return [{ lat, lng }];
+  const latOffset = spreadKm / 111;
+  const lngOffset = spreadKm / (111 * Math.cos((lat * Math.PI) / 180));
+  return [
+    { lat, lng },
+    { lat: lat + latOffset, lng },
+    { lat: lat - latOffset, lng },
+    { lat, lng: lng + lngOffset },
+    { lat, lng: lng - lngOffset },
+  ];
+}
+

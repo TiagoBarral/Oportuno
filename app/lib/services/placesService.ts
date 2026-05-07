@@ -65,7 +65,8 @@ interface PlaceDetailsResponse {
 export async function searchPlaces(
   industry: string,
   location: string,
-  radiusMeters: number
+  radiusMeters: number,
+  coords?: import("../cities").LatLng
 ): Promise<PlaceBasic[]> {
   const apiKey = process.env.GOOGLE_API_KEY;
   if (!apiKey) {
@@ -74,7 +75,7 @@ export async function searchPlaces(
 
   const query = `${industry} em ${location} Portugal`;
   const cityKey = normaliseCityKey(location);
-  const cityCoords = PORTUGUESE_CITIES[cityKey];
+  const cityCoords = coords ?? PORTUGUESE_CITIES[cityKey];
 
   // --- Page 1 ---
   const page1Params = new URLSearchParams({
