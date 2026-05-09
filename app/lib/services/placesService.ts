@@ -73,9 +73,12 @@ export async function searchPlaces(
     throw new Error("GOOGLE_API_KEY environment variable is not set");
   }
 
-  const query = `${industry} em ${location} Portugal`;
   const cityKey = normaliseCityKey(location);
   const cityCoords = coords ?? PORTUGUESE_CITIES[cityKey];
+  // When searching from a specific grid coordinate, omit the city name from the
+  // query text so Google uses the lat/lng radius for geography rather than
+  // returning the same city-wide top results from every grid point.
+  const query = coords !== undefined ? industry : `${industry} em ${location} Portugal`;
 
   // --- Page 1 ---
   const page1Params = new URLSearchParams({
@@ -128,7 +131,7 @@ export async function searchPlaces(
 
   for (let page = 2; page <= 3 && pageToken !== undefined; page++) {
     // Google requires a short delay before a next_page_token becomes valid.
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
     const contParams = new URLSearchParams({
       query,

@@ -6,11 +6,24 @@ const SINGLETON_ID = "singleton";
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const row = await prisma.userSettings.findFirst();
+    const row = await prisma.userSettings.findFirst({
+      select: { senderName: true, senderEmail: true, senderProfile: true, attachmentFilename: true },
+    });
     if (row === null) {
-      return NextResponse.json({ senderName: null, senderEmail: null }, { status: 200 });
+      return NextResponse.json(
+        { senderName: null, senderEmail: null, senderProfile: null, attachmentFilename: null },
+        { status: 200 },
+      );
     }
-    return NextResponse.json({ senderName: row.senderName, senderEmail: row.senderEmail }, { status: 200 });
+    return NextResponse.json(
+      {
+        senderName: row.senderName,
+        senderEmail: row.senderEmail,
+        senderProfile: row.senderProfile ?? null,
+        attachmentFilename: row.attachmentFilename ?? null,
+      },
+      { status: 200 },
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -42,16 +55,35 @@ export async function PATCH(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "senderEmail must be a valid email address" }, { status: 400 });
   }
 
+  if (raw.senderProfile !== undefined) {
+    if (typeof raw.senderProfile !== "string") {
+      return NextResponse.json({ error: "senderProfile must be a string" }, { status: 400 });
+    }
+    if (raw.senderProfile.length > 500) {
+      return NextResponse.json({ error: "senderProfile must be 500 characters or fewer" }, { status: 400 });
+    }
+  }
+
   const senderName = raw.senderName.trim();
   const senderEmail = raw.senderEmail.trim();
+  const senderProfile = typeof raw.senderProfile === "string" ? raw.senderProfile.trim() : null;
 
   try {
     const row = await prisma.userSettings.upsert({
       where: { id: SINGLETON_ID },
-      update: { senderName, senderEmail },
-      create: { id: SINGLETON_ID, senderName, senderEmail },
+      update: { senderName, senderEmail, ...(senderProfile !== null ? { senderProfile } : {}) },
+      create: { id: SINGLETON_ID, senderName, senderEmail, senderProfile },
+      select: { senderName: true, senderEmail: true, senderProfile: true, attachmentFilename: true },
     });
-    return NextResponse.json({ senderName: row.senderName, senderEmail: row.senderEmail }, { status: 200 });
+    return NextResponse.json(
+      {
+        senderName: row.senderName,
+        senderEmail: row.senderEmail,
+        senderProfile: row.senderProfile ?? null,
+        attachmentFilename: row.attachmentFilename ?? null,
+      },
+      { status: 200 },
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Internal server error";
     return NextResponse.json({ error: message }, { status: 500 });

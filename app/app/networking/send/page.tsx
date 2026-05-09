@@ -58,7 +58,8 @@ export default function BulkSendPage() {
 
   const [sendError, setSendError] = useState<string | null>(null);
 
-  const [senderSettings, setSenderSettings] = useState<{ senderName: string | null; senderEmail: string | null } | null>(null);
+  const [senderSettings, setSenderSettings] = useState<{ senderName: string | null; senderEmail: string | null; senderProfile: string | null; attachmentFilename: string | null } | null>(null);
+  const [settingsAttachmentFilename, setSettingsAttachmentFilename] = useState<string | null>(null);
 
   const [contactedInSelection, setContactedInSelection] = useState<string[]>([]);
   const [warningDismissed, setWarningDismissed] = useState(false);
@@ -75,9 +76,23 @@ export default function BulkSendPage() {
 
   useEffect(() => {
     fetch("/api/settings")
-      .then((r) => r.ok ? r.json() as Promise<{ senderName: string | null; senderEmail: string | null }> : Promise.reject())
-      .then((data) => setSenderSettings(data))
-      .catch(() => setSenderSettings({ senderName: null, senderEmail: null }));
+      .then((r) => r.ok ? r.json() as Promise<{
+        senderName: string | null;
+        senderEmail: string | null;
+        senderProfile: string | null;
+        attachmentFilename: string | null;
+      }> : Promise.reject())
+      .then((data) => {
+        setSenderSettings(data);
+        // one-time pre-fill: only if oferta is still empty
+        if (data.senderProfile && brief.oferta.trim() === "") {
+          setBrief((prev) => ({ ...prev, oferta: data.senderProfile! }));
+        }
+        if (data.attachmentFilename) {
+          setSettingsAttachmentFilename(data.attachmentFilename);
+        }
+      })
+      .catch(() => setSenderSettings({ senderName: null, senderEmail: null, senderProfile: null, attachmentFilename: null }));
   }, []);
 
   useEffect(() => {
@@ -454,6 +469,15 @@ export default function BulkSendPage() {
                 Preencha os campos abaixo para gerar um email com IA.
               </p>
 
+              {senderSettings !== null && !senderSettings.senderProfile && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-800 flex items-center justify-between gap-2">
+                  <span>Perfil de remetente não configurado.</span>
+                  <Link href="/definicoes" className="font-medium text-amber-900 underline whitespace-nowrap">
+                    Configurar →
+                  </Link>
+                </div>
+              )}
+
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-gray-700" htmlFor="oferta">
                   1. A minha oferta <span className="text-red-500">*</span>
@@ -554,6 +578,12 @@ export default function BulkSendPage() {
                   {contextFileError !== null && (
                     <p className="mt-1 text-xs text-red-600">{contextFileError}</p>
                   )}
+                  {contextFile === null && settingsAttachmentFilename !== null && (
+                    <p className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-400">
+                      <span>🤖</span>
+                      <span className="truncate"><span className="font-medium text-gray-500">{settingsAttachmentFilename}</span> — usado como contexto</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -599,9 +629,7 @@ export default function BulkSendPage() {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-gray-400 -mt-3 text-center">
-                A IA usará os placeholders: {`{{empresa}}`}, {`{{municipio}}`}, {`{{setor}}`}
-              </p>
+
               <div className="flex flex-col gap-2">
                 {saveSuccess && (
                   <p className="text-xs text-green-600 font-medium">Template guardado!</p>
@@ -840,6 +868,15 @@ export default function BulkSendPage() {
                     <span className="text-sm font-semibold text-gray-700">Anexo</span>
                     <span className="text-xs text-gray-400 font-normal">(opcional)</span>
                   </div>
+                  {settingsAttachmentFilename !== null && attachment === null && (
+                    <div className="mb-3 flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                      <IconPaperclip className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      <span className="text-xs text-gray-600 flex-1 truncate">
+                        <span className="font-medium">{settingsAttachmentFilename}</span>
+                        <span className="text-gray-400"> — incluído no envio</span>
+                      </span>
+                    </div>
+                  )}
                   {attachment === null ? (
                     <label className="flex items-center gap-3 cursor-pointer rounded-lg border-2 border-dashed border-gray-200 px-4 py-5 hover:border-blue-400 hover:bg-blue-50 transition-colors">
                       <IconPaperclip className="w-5 h-5 text-gray-400 flex-shrink-0" />

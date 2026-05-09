@@ -4,7 +4,8 @@ import * as cheerio from "cheerio";
 // Constants
 // ---------------------------------------------------------------------------
 
-const FETCH_TIMEOUT_MS = 10_000;
+const FETCH_TIMEOUT_MS = 5_000;
+const HTML_READ_LIMIT = 150_000;
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -95,7 +96,28 @@ export async function fetchHtml(url: string): Promise<string | null> {
       return null;
     }
 
-    return await response.text();
+    const reader = response.body?.getReader();
+    if (!reader) return await response.text();
+
+    const decoder = new TextDecoder();
+    let html = "";
+    let bytesRead = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        html += decoder.decode(value, { stream: true });
+        bytesRead += value.byteLength;
+        if (bytesRead >= HTML_READ_LIMIT) {
+          await reader.cancel();
+          break;
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+
+    return html || null;
   } catch {
     // Covers AbortError (timeout), network failures, and DNS errors.
     return null;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateEmail } from "@/lib/services/emailGenerator";
+import { prisma } from "@/lib/prisma";
 
 const VALID_OPPORTUNITY_TYPES = new Set(["NO_WEBSITE", "WEAK_WEBSITE"]);
 
@@ -54,12 +55,24 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
   }
 
+  const senderProfile =
+    typeof raw.senderProfile === "string" ? raw.senderProfile.trim() : undefined;
+
+  const stored = await prisma.userSettings.findFirst({
+    select: { attachmentData: true },
+  });
+  const attachmentData = stored?.attachmentData != null
+    ? stored.attachmentData.toString("base64")
+    : undefined;
+
   try {
     const result = await generateEmail({
       companyName,
       industry,
       opportunityType: opportunityType as "NO_WEBSITE" | "WEAK_WEBSITE",
       ...(templateId !== undefined ? { templateId } : {}),
+      senderProfile,
+      attachmentData,
     });
     return NextResponse.json(result, { status: 200 });
   } catch (err) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import type { Company, NetworkingFilters } from "../types";
 import AppShell from "../components/AppShell";
@@ -71,6 +71,18 @@ function NetworkingContent() {
     generating: false,
     sending: false,
   });
+  const [attachmentFilename, setAttachmentFilename] = useState<string | null>(null);
+  const [localSenderProfile, setLocalSenderProfile] = useState("");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() as Promise<{ senderProfile: string | null; attachmentFilename: string | null }> : Promise.reject())
+      .then((data) => {
+        setLocalSenderProfile(data.senderProfile ?? "");
+        setAttachmentFilename(data.attachmentFilename ?? null);
+      })
+      .catch(() => {});
+  }, []);
 
   function handleContactar(companies: Company[]) {
     sessionStorage.setItem("oportuno_bulk_selection", JSON.stringify(companies));
@@ -100,6 +112,7 @@ function NetworkingContent() {
           companyName: selectedCompany.name,
           industry: selectedCompany.industry,
           opportunityType: selectedCompany.opportunity,
+          senderProfile: localSenderProfile,
         }),
       });
       if (!res.ok) {
@@ -169,6 +182,9 @@ function NetworkingContent() {
             onEmailDraftChange={handleEmailDraftChange}
             onGenerate={handleGenerate}
             onSend={handleSend}
+            senderProfile={localSenderProfile}
+            attachmentFilename={attachmentFilename}
+            onSendProfileChange={setLocalSenderProfile}
           />
         )}
       </div>

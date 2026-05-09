@@ -47,7 +47,7 @@ function getInitials(name: string): string {
 export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();
   const crumbs = getBreadcrumbs(pathname);
-  const [settings, setSettings] = useState<UserSettings>({ senderName: null, senderEmail: null });
+  const [settings, setSettings] = useState<UserSettings>({ senderName: null, senderEmail: null, senderProfile: null, attachmentFilename: null });
 
   useEffect(() => {
     fetch("/api/settings")

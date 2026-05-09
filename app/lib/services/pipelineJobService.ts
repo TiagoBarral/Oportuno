@@ -92,20 +92,20 @@ export async function seedPipelineCompanies(
   });
 }
 
-export async function claimPendingCompany(jobId: string) {
+export async function claimAllPendingCompanies(jobId: string) {
   const rows = await prisma.pipelineCompany.findMany({
     where: { jobId, status: "PENDING" },
     orderBy: { createdAt: "asc" },
-    take: 1,
   });
 
-  const row = rows[0] ?? null;
-  if (!row) return null;
+  if (rows.length === 0) return [];
 
-  return prisma.pipelineCompany.update({
-    where: { id: row.id },
+  await prisma.pipelineCompany.updateMany({
+    where: { id: { in: rows.map((r) => r.id) } },
     data: { status: "PROCESSING" },
   });
+
+  return rows;
 }
 
 export async function markCompanyDone(id: string, companyId: string): Promise<void> {

@@ -11,6 +11,8 @@ export interface GenerateEmailInput {
   industry: string;
   opportunityType: "NO_WEBSITE" | "WEAK_WEBSITE";
   templateId?: string;
+  senderProfile?: string;
+  attachmentData?: string; // base64 PDF — passed as native document block to Claude
 }
 
 export type { GeneratedEmail };
@@ -110,23 +112,40 @@ async function generateEmailWithAnthropic(
     opportunity: opportunityDescription,
   });
 
+  const senderSection = input.senderProfile?.trim()
+    ? `\nPerfil do remetente:\n${input.senderProfile.trim()}\n\nO email deve ser escrito na perspetiva deste remetente, apresentando-o e os seus serviços de forma natural.`
+    : "";
+
   const userMessage = `Escreve um email de prospeção para a seguinte empresa:
 
 - Nome: ${companyName}
 - Setor: ${industry}
 - Situação: ${opportunityDescription}
-
+${senderSection}
 Usa este esboço como ponto de partida para o tom e estrutura, mas reformula com as tuas próprias palavras:
 
 ${resolvedTemplate.body}`;
 
   const client = new Anthropic();
 
+  type MessageContent =
+    | { type: "text"; text: string }
+    | { type: "document"; source: { type: "base64"; media_type: "application/pdf"; data: string } };
+
+  const messageContent: MessageContent[] = [{ type: "text", text: userMessage }];
+
+  if (input.attachmentData) {
+    messageContent.push({
+      type: "document",
+      source: { type: "base64", media_type: "application/pdf", data: input.attachmentData },
+    });
+  }
+
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 512,
     system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userMessage }],
+    messages: [{ role: "user", content: messageContent as Parameters<typeof client.messages.create>[0]["messages"][0]["content"] }],
   });
 
   if (response.content.length === 0 || response.content[0].type !== "text") {

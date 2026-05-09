@@ -14,13 +14,29 @@ import {
   IconEnvelope,
   IconUsers,
   IconStar,
-  IconSparkle,
-  IconDocument,
   IconPaperPlane,
-  IconArrowRight,
   IconTrendUp,
   IconTrendDown,
 } from "./shared";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const SIZE_BADGE: Record<string, string> = {
+  Pequena: "bg-emerald-50 text-emerald-700",
+  Média: "bg-blue-50 text-blue-700",
+  Grande: "bg-violet-50 text-violet-700",
+};
+
+function SizeBadge({ size }: { size: string }) {
+  const cls = SIZE_BADGE[size] ?? "bg-gray-100 text-gray-500";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls}`}>
+      {size}
+    </span>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Local types
@@ -50,6 +66,9 @@ interface CompanyDetailPanelProps {
   onEmailDraftChange: (draft: EmailDraft) => void;
   onGenerate: () => void;
   onSend: () => void;
+  senderProfile: string;
+  attachmentFilename: string | null;
+  onSendProfileChange: (v: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +97,9 @@ export default function CompanyDetailPanel({
   onEmailDraftChange,
   onGenerate,
   onSend,
+  senderProfile,
+  attachmentFilename,
+  onSendProfileChange,
 }: CompanyDetailPanelProps): ReactElement {
   // Stats bar computations
   const total = companies.length;
@@ -127,9 +149,12 @@ export default function CompanyDetailPanel({
                   {company.address ?? "Endereço não disponível"}
                 </p>
               </div>
-              <span className={`flex-shrink-0 mt-0.5 rounded-full px-2 py-1 text-xs font-medium ${opportunityColor(company.opportunity)}`}>
-                {opportunityLabel(company.opportunity)}
-              </span>
+              <div className="flex-shrink-0 flex flex-col items-end gap-1 mt-0.5">
+                <span className={`rounded-full px-2 py-1 text-xs font-medium ${opportunityColor(company.opportunity)}`}>
+                  {opportunityLabel(company.opportunity)}
+                </span>
+                <SizeBadge size={company.companySize} />
+              </div>
             </div>
             {(company.websiteUrl !== null || company.phoneNumber !== null || company.email !== null) && (
               <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-x-5 gap-y-2 text-sm">
@@ -278,49 +303,7 @@ export default function CompanyDetailPanel({
 
           </div>
 
-          {/* 4. Email draft card — only when emailDraft !== null */}
-          {emailDraft !== null && (
-            <div id="email-draft" className="bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-4">Rascunho de Email</p>
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label htmlFor="email-subject" className="block text-xs font-medium text-gray-500 mb-1.5">
-                    Assunto
-                  </label>
-                  <input
-                    id="email-subject"
-                    type="text"
-                    value={emailDraft.subject}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      onEmailDraftChange({ ...emailDraft, subject: e.target.value })
-                    }
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="email-body" className="block text-xs font-medium text-gray-500 mb-1.5">
-                    Mensagem
-                  </label>
-                  <textarea
-                    id="email-body"
-                    rows={10}
-                    value={emailDraft.body}
-                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
-                      onEmailDraftChange({ ...emailDraft, body: e.target.value })
-                    }
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y"
-                  />
-                </div>
-              </div>
-              {sendResult !== null && (
-                <p className={`mt-3 text-sm ${sendResult.success ? "text-green-600" : "text-red-500"}`}>
-                  {sendResult.success ? "Email enviado com sucesso." : `Erro ao enviar: ${sendResult.message}`}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* 5. Stats bar — only shown when discovery results are available */}
+          {/* 4. Stats bar — only shown when discovery results are available */}
           {companies.length > 0 && <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Desempenho</p>
@@ -354,101 +337,149 @@ export default function CompanyDetailPanel({
         </div>
       </div>
 
-      {/* 6. Right action panel */}
+      {/* Right action panel */}
       <aside className="w-72 flex-shrink-0 flex flex-col gap-4 p-4 bg-gray-50 border-l border-gray-200 overflow-y-auto">
 
-        {/* Card 1 — Gerar Email */}
+        {/* Single card — Enviar Email */}
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-all duration-150">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              <span className="flex items-center gap-1.5">
-                <IconSparkle className="w-3.5 h-3.5" />
-                Gerar Email
-              </span>
-            </p>
-            <p className="mt-1 text-xs text-gray-500 leading-relaxed">
-              Gera um email personalizado com base na empresa e oportunidade selecionadas.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onGenerate}
-            disabled={loading.generating || company.opportunity === "NONE"}
-            className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
-          >
-            {loading.generating ? "A gerar..." : "Gerar Email"}
-          </button>
-          {generateError !== null && (
-            <p className="text-xs text-red-500">{generateError}</p>
-          )}
-        </div>
 
-        {/* Card 2 — Rascunho de Email */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-all duration-150">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              <span className="flex items-center gap-1.5">
-                <IconDocument className="w-3.5 h-3.5" />
-                Rascunho de Email
-              </span>
-            </p>
-            <p className="mt-1 text-xs text-gray-500 leading-relaxed">
-              Revise e personalize o email gerado antes de enviar.
-            </p>
-          </div>
-          <button
-            type="button"
-            disabled={emailDraft === null}
-            onClick={() => {
-              document.getElementById("email-draft")?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }}
-            className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold text-center transition-colors disabled:cursor-not-allowed ${
-              emailDraft !== null
-                ? "border-gray-300 text-gray-700 hover:bg-gray-50"
-                : "border-gray-200 text-gray-300"
-            }`}
-          >
-            <span className="flex items-center justify-center gap-2">
-              Ver Rascunho
-              <IconArrowRight className="w-3.5 h-3.5" />
+          {/* Header */}
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            <span className="flex items-center gap-1.5">
+              <IconPaperPlane className="w-3.5 h-3.5" />
+              Enviar Email
             </span>
-          </button>
-        </div>
+          </p>
 
-        {/* Card 3 — Enviar Email */}
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-all duration-150">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              <span className="flex items-center gap-1.5">
-                <IconPaperPlane className="w-3.5 h-3.5" />
-                Enviar Email
-              </span>
-            </p>
-            <p className="mt-1 text-xs text-gray-500 leading-relaxed">
-              Envia o email diretamente para o contacto da empresa.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={company.email === null || emailDraft === null || loading.sending}
-            className="w-full rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 active:bg-green-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
-          >
-            {loading.sending ? "A enviar..." : (
-              <span className="flex items-center justify-center gap-2">
-                <IconPaperPlane className="w-3.5 h-3.5" />
-                Enviar Email
-              </span>
-            )}
-          </button>
-          {sendResult !== null && (
-            <p className={`text-xs ${sendResult.success ? "text-green-600" : "text-red-500"}`}>
-              {sendResult.success ? "Enviado com sucesso." : `Erro ao enviar: ${sendResult.message}`}
-            </p>
+          {/* No contact available */}
+          {company.email === null ? (
+            <p className="text-xs text-gray-400">Sem contacto disponível para esta empresa.</p>
+          ) : (
+            <>
+              {/* Opportunity notice — shown but does not block */}
+              {company.opportunity === "NONE" && (
+                <div className="rounded-lg bg-blue-50 border border-blue-100 px-3 py-2.5 flex gap-2">
+                  <span className="text-blue-400 text-xs select-none flex-shrink-0 mt-0.5">ℹ</span>
+                  <p className="text-xs text-blue-700 leading-relaxed">
+                    Esta empresa tem presença online adequada. Email de outreach não recomendado.
+                  </p>
+                </div>
+              )}
+
+              {/* Sender profile */}
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="sender-profile" className="text-xs font-medium text-gray-500">
+                  O seu perfil
+                </label>
+                <textarea
+                  id="sender-profile"
+                  rows={3}
+                  value={senderProfile}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onSendProfileChange(e.target.value)}
+                  placeholder="Descreva brevemente os seus serviços..."
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder-gray-300 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-none"
+                />
+                {senderProfile.trim() === "" && (
+                  <a
+                    href="/definicoes"
+                    className="text-[11px] text-gray-400 hover:text-blue-500 transition-colors"
+                  >
+                    Configurar em Definições →
+                  </a>
+                )}
+              </div>
+
+              {/* Generate button */}
+              <button
+                type="button"
+                onClick={onGenerate}
+                disabled={loading.generating}
+                className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+              >
+                {loading.generating ? "A gerar..." : "Gerar Email"}
+              </button>
+
+              {/* Generate error */}
+              {generateError !== null && (
+                <p className="text-xs text-red-500">{generateError}</p>
+              )}
+
+              {/* Attachment indicator — always visible when configured */}
+              {attachmentFilename !== null && (
+                <div className="flex flex-col gap-0.5">
+                  <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                    <span>🤖</span>
+                    <span className="truncate">{attachmentFilename} — lido pela IA para personalizar o email</span>
+                  </p>
+                  <p className="text-[11px] text-gray-400 flex items-center gap-1">
+                    <span>📎</span>
+                    <span>Incluído como anexo no envio</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Draft section — revealed after generation */}
+              {emailDraft !== null && (
+                <>
+                  <hr className="border-gray-100" />
+
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Rascunho</p>
+
+                  {/* Subject */}
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="email-subject" className="text-xs font-medium text-gray-500">
+                      Assunto
+                    </label>
+                    <input
+                      id="email-subject"
+                      type="text"
+                      value={emailDraft.subject}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                        onEmailDraftChange({ ...emailDraft, subject: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Body */}
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="email-body" className="text-xs font-medium text-gray-500">
+                      Mensagem
+                    </label>
+                    <textarea
+                      id="email-body"
+                      rows={8}
+                      value={emailDraft.body}
+                      onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) =>
+                        onEmailDraftChange({ ...emailDraft, body: e.target.value })
+                      }
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 resize-y"
+                    />
+                  </div>
+
+                  {/* Send button */}
+                  <button
+                    type="button"
+                    onClick={onSend}
+                    disabled={loading.sending}
+                    className="w-full rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 active:bg-green-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                  >
+                    {loading.sending ? "A enviar..." : "Confirmar Envio"}
+                  </button>
+
+                  {/* Send result */}
+                  {sendResult !== null && (
+                    <p className={`text-xs ${sendResult.success ? "text-green-600" : "text-red-500"}`}>
+                      {sendResult.success
+                        ? "Email enviado com sucesso."
+                        : `Erro ao enviar: ${sendResult.message}`}
+                    </p>
+                  )}
+                </>
+              )}
+            </>
           )}
-          {company.email === null && (
-            <p className="text-xs text-gray-400">Email de contacto não disponível.</p>
-          )}
+
         </div>
 
       </aside>

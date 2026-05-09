@@ -127,6 +127,37 @@ export const DISTRICT_OPTIONS: DistrictOption[] = [
   { name: "Madeira", municipalities: ["Funchal"] },
 ];
 
+export interface PortugalRegion {
+  key: "norte" | "centro" | "sul";
+  label: string;
+  municipalities: string[];
+}
+
+export const PORTUGAL_REGIONS: PortugalRegion[] = [
+  {
+    key: "norte",
+    label: "Norte",
+    municipalities: [
+      "Porto", "Matosinhos", "Vila Nova de Gaia", "Gondomar", "Maia",
+      "Valongo", "Braga", "Guimarães", "Barcelos", "Viana do Castelo",
+    ],
+  },
+  {
+    key: "centro",
+    label: "Centro",
+    municipalities: ["Aveiro", "Coimbra", "Leiria", "Viseu"],
+  },
+  {
+    key: "sul",
+    label: "Sul",
+    municipalities: [
+      "Lisboa", "Oeiras", "Cascais", "Sintra", "Amadora", "Loures",
+      "Odivelas", "Setúbal", "Almada", "Barreiro", "Montijo",
+      "Santarém", "Évora", "Faro", "Portimão",
+    ],
+  },
+];
+
 const MUNICIPALITY_TO_DISTRICT: Record<string, string> = {};
 for (const district of DISTRICT_OPTIONS) {
   for (const municipality of district.municipalities) {
@@ -169,12 +200,12 @@ export function computeGridPoints(lat: number, lng: number, spreadKm: number): L
   if (spreadKm <= 0) return [{ lat, lng }];
   const latOffset = spreadKm / 111;
   const lngOffset = spreadKm / (111 * Math.cos((lat * Math.PI) / 180));
-  return [
-    { lat, lng },
-    { lat: lat + latOffset, lng },
-    { lat: lat - latOffset, lng },
-    { lat, lng: lng + lngOffset },
-    { lat, lng: lng - lngOffset },
-  ];
+  const points: LatLng[] = [];
+  for (const dLat of [-latOffset, 0, latOffset]) {
+    for (const dLng of [-lngOffset, 0, lngOffset]) {
+      points.push({ lat: lat + dLat, lng: lng + dLng });
+    }
+  }
+  return points; // 3×3 = 9 points
 }
 

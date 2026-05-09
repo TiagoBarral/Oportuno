@@ -9,6 +9,7 @@ export interface Company {
   location: string;
   category: string;
   specialty: string;
+  companySize: string;
   municipality: string | null;
   websiteUrl: string | null;
   hasWebsite: boolean;
@@ -27,6 +28,7 @@ export interface NetworkingFilters {
   municipality: string;
   category: string;
   specialty: string;
+  companySize: string;
   opportunity: Opportunity | "";
   hasWebsite: "true" | "false" | "";
   hasEmail: "true" | "false" | "";
@@ -82,6 +84,8 @@ export interface HistoricoResponse extends PaginatedResponse<EmailLogEntry> {
 export interface UserSettings {
   senderName: string | null;
   senderEmail: string | null;
+  senderProfile: string | null;
+  attachmentFilename: string | null;
 }
 
 export interface EmailTemplate {

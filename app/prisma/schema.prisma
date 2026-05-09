@@ -41,6 +41,7 @@ model Company {
   location    String
   category        String      @default("Outros")
   specialty       String      @default("Outros")
+  companySize     String      @default("Desconhecida")
   municipality    String?
   rawMunicipality String?
   websiteUrl  String?
@@ -60,6 +61,7 @@ model Company {
   @@index([opportunity])
   @@index([category])
   @@index([specialty])
+  @@index([companySize])
   @@index([municipality])
   @@index([email])
   @@index([phoneNumber])
@@ -113,9 +115,12 @@ model EmailLog {
 }
 
 model UserSettings {
-  id          String @id @default("singleton")
-  senderName  String
-  senderEmail String
+  id                 String  @id @default("singleton")
+  senderName         String
+  senderEmail        String
+  senderProfile      String?
+  attachmentFilename String?
+  attachmentData     Bytes?
 }
 
 model EmailTemplate {

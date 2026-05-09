@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { generateTemplate } from "@/lib/services/templateGenerator";
+import { prisma } from "@/lib/prisma";
 import type { BulkEmailTemplateBrief, AIContextFile } from "@/app/types";
 
 const VALID_TONS = new Set(["profissional", "amigavel", "direto"]);
@@ -95,6 +96,20 @@ export async function POST(request: Request): Promise<NextResponse> {
       ? { instrucoesAdicionais: (raw.instrucoesAdicionais as string).trim() }
       : {}),
   };
+
+  // Fall back to stored attachment as context when no manual context was provided
+  if (context === undefined) {
+    const stored = await prisma.userSettings.findFirst({
+      select: { attachmentData: true, attachmentFilename: true },
+    });
+    if (stored?.attachmentData != null && stored.attachmentFilename != null) {
+      context = {
+        type: "pdf",
+        filename: stored.attachmentFilename,
+        content: stored.attachmentData.toString("base64"),
+      };
+    }
+  }
 
   try {
     const result = await generateTemplate(brief, context);

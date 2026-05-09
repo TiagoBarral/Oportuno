@@ -44,9 +44,25 @@ const FILTER_LABELS: Partial<Record<keyof NetworkingFilters, (v: string) => stri
   municipality: (v) => `Concelho: ${v}`,
   category: (v) => `Categoria: ${v}`,
   specialty: (v) => `Especialidade: ${v}`,
+  companySize: (v) => `Dimensão: ${v}`,
   hasWebsite: (v) => v === "true" ? "Com website" : "Sem website",
   hasEmail: (v) => v === "true" ? "Com email" : "Sem email",
 };
+
+const SIZE_BADGE: Record<string, string> = {
+  Pequena: "bg-emerald-50 text-emerald-700",
+  Média: "bg-blue-50 text-blue-700",
+  Grande: "bg-violet-50 text-violet-700",
+};
+
+function SizeBadge({ size }: { size: string }) {
+  const cls = SIZE_BADGE[size] ?? "bg-gray-100 text-gray-500";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${cls}`}>
+      {size}
+    </span>
+  );
+}
 
 function companyInitials(name: string): string {
   return name
@@ -62,6 +78,7 @@ const EMPTY_FILTERS: NetworkingFilters = {
   municipality: "",
   category: "",
   specialty: "",
+  companySize: "",
   opportunity: "",
   hasWebsite: "",
   hasEmail: "",
@@ -98,6 +115,7 @@ function addCompanyFilterParams(
   if (municipalities.length > 1) params.set("municipalities", municipalities.join(","));
   if (currentFilters.category)    params.set("category", currentFilters.category);
   if (currentFilters.specialty)   params.set("specialty", currentFilters.specialty);
+  if (currentFilters.companySize) params.set("companySize", currentFilters.companySize);
   if (currentFilters.hasWebsite)  params.set("hasWebsite", currentFilters.hasWebsite);
   if (currentFilters.hasEmail)    params.set("hasEmail", currentFilters.hasEmail);
 }
@@ -137,6 +155,7 @@ export default function NetworkingView({
   const [error, setError] = useState<string | null>(null);
   const [selectedCompanies, setSelectedCompanies] = useState<Map<string, Company>>(new Map());
   const [exportLoading, setExportLoading] = useState(false);
+  const [selectAllLoading, setSelectAllLoading] = useState(false);
   const [contactedIds, setContactedIds] = useState<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
 
@@ -291,19 +310,50 @@ export default function NetworkingView({
   const allCurrentPageSelected =
     companies.length > 0 && companies.every((c) => selectedCompanies.has(c.id));
 
-  function handleSelectAll() {
-    if (allCurrentPageSelected) {
-      setSelectedCompanies((prev) => {
-        const next = new Map(prev);
-        companies.forEach((c) => next.delete(c.id));
-        return next;
-      });
-    } else {
+  const allResultsSelected = total > 0 && selectedCompanies.size >= total;
+
+  async function handleSelectAllResults() {
+    if (allResultsSelected || allCurrentPageSelected) {
+      setSelectedCompanies(new Map());
+      return;
+    }
+
+    setSelectAllLoading(true);
+    try {
+      const collected: Company[] = [];
+      const currentFilters = filters;
+      const currentLocationSelection = locationSelection;
+
+      const buildParams = (p: number) => {
+        const params = new URLSearchParams();
+        params.set("page", String(p));
+        params.set("pageSize", String(EXPORT_PAGE_SIZE));
+        addCompanyFilterParams(params, currentFilters, currentLocationSelection);
+        return params;
+      };
+
+      const firstRes = await fetch(`/api/companies?${buildParams(1).toString()}`);
+      if (!firstRes.ok) throw new Error("Erro ao carregar empresas");
+      const firstData = (await firstRes.json()) as PaginatedResponse<Company>;
+      collected.push(...firstData.items);
+
+      const fetchPages = Math.ceil(firstData.total / EXPORT_PAGE_SIZE);
+      for (let p = 2; p <= fetchPages; p++) {
+        const res = await fetch(`/api/companies?${buildParams(p).toString()}`);
+        if (!res.ok) throw new Error(`Erro ao obter página ${p}`);
+        const data = (await res.json()) as PaginatedResponse<Company>;
+        collected.push(...data.items);
+      }
+
+      setSelectedCompanies(new Map(collected.map((c) => [c.id, c])));
+    } catch {
       setSelectedCompanies((prev) => {
         const next = new Map(prev);
         companies.forEach((c) => next.set(c.id, c));
         return next;
       });
+    } finally {
+      setSelectAllLoading(false);
     }
   }
 
@@ -416,9 +466,9 @@ export default function NetworkingView({
           )}
         </div>
 
-        <button type="button" disabled={companies.length === 0 || loading} onClick={handleSelectAll}
+        <button type="button" disabled={companies.length === 0 || loading || selectAllLoading} onClick={() => void handleSelectAllResults()}
           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 active:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-          {allCurrentPageSelected ? "Desselecionar" : `Selecionar todas (${companies.length})`}
+          {selectAllLoading ? "A selecionar..." : (allResultsSelected || allCurrentPageSelected) ? "Desselecionar" : `Selecionar todas (${total})`}
         </button>
 
         <button type="button" disabled={emailCount === 0}
@@ -528,7 +578,14 @@ export default function NetworkingView({
               {(SPECIALTIES[filters.category] ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
 
-<div className="flex items-center">
+            <select name="companySize" value={filters.companySize}
+              onChange={(e) => handleInstantFilterChange("companySize", e.target.value)}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
+              <option value="">Dimensão</option>
+              {["Pequena", "Média", "Grande", "Desconhecida"].map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+            <div className="flex items-center">
               <span className="text-xs text-gray-500 mr-2">Website</span>
               <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs">
                 {(["", "true", "false"] as const).map((val, i) => (
@@ -600,13 +657,14 @@ export default function NetworkingView({
               <tr>
                 <th className="w-10 px-4 py-2.5">
                   <input type="checkbox"
-                    checked={allCurrentPageSelected}
-                    disabled={companies.length === 0}
-                    onChange={handleSelectAll}
+                    checked={allResultsSelected}
+                    disabled={companies.length === 0 || selectAllLoading}
+                    onChange={() => void handleSelectAllResults()}
                     className="rounded border-gray-300" />
                 </th>
                 <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Empresa</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Categoria</th>
+                <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Dimensão</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Concelho</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Website</th>
                 <th className="px-4 py-2.5 text-left font-semibold text-gray-600 whitespace-nowrap">Email</th>
@@ -616,19 +674,19 @@ export default function NetworkingView({
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
                     A carregar...
                   </td>
                 </tr>
               ) : error !== null ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-red-500">
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-red-500">
                     {error}
                   </td>
                 </tr>
               ) : companies.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
                     Nenhuma empresa encontrada. Ajuste os filtros.
                   </td>
                 </tr>
@@ -658,6 +716,9 @@ export default function NetworkingView({
                         </div>
                       </td>
                       <td className="px-4 py-3 text-gray-600 max-w-[140px] truncate">{company.category}</td>
+                      <td className="px-4 py-3">
+                        <SizeBadge size={company.companySize} />
+                      </td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{company.municipality ?? "—"}</td>
                       <td className="px-4 py-3">
                         {company.hasWebsite

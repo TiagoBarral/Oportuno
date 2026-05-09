@@ -130,8 +130,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           .replace(/\s+/g, "_")
           .slice(0, 255);
         (a as Record<string, unknown>).filename = safeFilename;
-        const header = Buffer.from((a.content as string).slice(0, 8), "base64").toString("ascii");
-        if (!header.startsWith("%PDF-")) {
+        const header = Buffer.from((a.content as string).slice(0, 20), "base64").slice(0, 5).toString("ascii");
+        if (header !== "%PDF-") {
           return NextResponse.json(
             { error: `Attachment "${a.filename as string}" must be a valid PDF file` },
             { status: 400 },
@@ -141,7 +141,22 @@ export async function POST(request: Request): Promise<NextResponse> {
       attachments = raw.attachments as EmailAttachment[];
     }
 
-    const settings = await prisma.userSettings.findFirst();
+    // Server-side attachment fallback — use stored PDF when caller provided none
+    if (attachments === undefined) {
+      const stored = await prisma.userSettings.findFirst({
+        select: { attachmentData: true, attachmentFilename: true },
+      });
+      if (stored?.attachmentData != null && stored.attachmentFilename != null) {
+        attachments = [{
+          filename: stored.attachmentFilename,
+          content: stored.attachmentData.toString("base64"),
+        }];
+      }
+    }
+
+    const settings = await prisma.userSettings.findFirst({
+      select: { senderName: true, senderEmail: true },
+    });
     const from = settings !== null
       ? `"${settings.senderName.replace(/"/g, '\\"')}" <${settings.senderEmail}>`
       : (process.env.RESEND_FROM_ADDRESS ?? "noreply@oportuno.pt");
@@ -206,12 +221,28 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 
+  // Server-side attachment fallback — use stored PDF when caller provided none
+  let attachments: EmailAttachment[] | undefined = undefined;
+  {
+    const stored = await prisma.userSettings.findFirst({
+      select: { attachmentData: true, attachmentFilename: true },
+    });
+    if (stored?.attachmentData != null && stored.attachmentFilename != null) {
+      attachments = [{
+        filename: stored.attachmentFilename,
+        content: stored.attachmentData.toString("base64"),
+      }];
+    }
+  }
+
   try {
-    const singleSettings = await prisma.userSettings.findFirst();
+    const singleSettings = await prisma.userSettings.findFirst({
+      select: { senderName: true, senderEmail: true },
+    });
     const singleFrom = singleSettings !== null
-      ? `${singleSettings.senderName} <${singleSettings.senderEmail}>`
+      ? `"${singleSettings.senderName.replace(/"/g, '\\"')}" <${singleSettings.senderEmail}>`
       : (process.env.RESEND_FROM_ADDRESS ?? "noreply@oportuno.pt");
-    const result = await sendEmail({ companyId, to, subject, body: emailBody, from: singleFrom });
+    const result = await sendEmail({ companyId, to, subject, body: emailBody, from: singleFrom, attachments });
     if (!result.success) {
       return NextResponse.json(result, { status: 502 });
     }

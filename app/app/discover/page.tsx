@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Company } from "../types";
 import AppShell from "../components/AppShell";
 import DiscoverView from "../components/DiscoverView";
@@ -39,6 +39,19 @@ export default function DiscoverPage() {
     generating: false,
     sending: false,
   });
+  const [attachmentFilename, setAttachmentFilename] = useState<string | null>(null);
+  const [localSenderProfile, setLocalSenderProfile] = useState("");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() as Promise<{ senderProfile: string | null; attachmentFilename: string | null }> : Promise.reject())
+      .then((data) => {
+        const profile = data.senderProfile ?? "";
+        setLocalSenderProfile(profile);
+        setAttachmentFilename(data.attachmentFilename ?? null);
+      })
+      .catch(() => {});
+  }, []);
 
   function handleSelectCompany(company: Company) {
     setSelectedCompany(company);
@@ -63,6 +76,7 @@ export default function DiscoverPage() {
           companyName: selectedCompany.name,
           industry: selectedCompany.industry,
           opportunityType: selectedCompany.opportunity,
+          senderProfile: localSenderProfile,
         }),
       });
       if (!res.ok) {
@@ -130,6 +144,9 @@ export default function DiscoverPage() {
             onEmailDraftChange={handleEmailDraftChange}
             onGenerate={handleGenerate}
             onSend={handleSend}
+            senderProfile={localSenderProfile}
+            attachmentFilename={attachmentFilename}
+            onSendProfileChange={setLocalSenderProfile}
           />
         )}
       </div>

@@ -22,6 +22,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   const categoryParam     = searchParams.get("category");
   const specialtyParam    = searchParams.get("specialty");
   const opportunityParam  = searchParams.get("opportunity");
+  const companySizeParam  = searchParams.get("companySize");
   const hasWebsiteParam   = searchParams.get("hasWebsite");
   const hasEmailParam     = searchParams.get("hasEmail");
   const pageParam         = searchParams.get("page");
@@ -96,6 +97,10 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     if (specialtyParam !== null && specialtyParam !== "") {
       where.specialty = { equals: specialtyParam, mode: "insensitive" };
+    }
+
+    if (companySizeParam !== null && companySizeParam !== "") {
+      where.companySize = { equals: companySizeParam, mode: "insensitive" };
     }
 
     if (opportunityParam !== null && opportunityParam !== "") {

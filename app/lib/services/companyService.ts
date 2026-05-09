@@ -9,6 +9,7 @@ export interface CompanyData {
   industry:        string;
   category:        string;
   specialty:       string;
+  companySize:     string;
   municipality:    string | null;
   rawMunicipality: string | null;
   websiteUrl:      string | null;
@@ -30,6 +31,7 @@ export async function persistCompany(data: CompanyData): Promise<Company> {
       industry:        data.industry,
       category:        data.category,
       specialty:       data.specialty,
+      companySize:     data.companySize,
       municipality:    data.municipality ?? undefined,
       rawMunicipality: data.rawMunicipality ?? undefined,
       websiteUrl:      data.websiteUrl,
@@ -46,6 +48,7 @@ export async function persistCompany(data: CompanyData): Promise<Company> {
       hasWebsite:     data.hasWebsite,
       category:       data.category,
       specialty:      data.specialty,
+      companySize:    data.companySize,
       lastEnrichedAt: new Date(),
 
       // non-identifying fields from Places API — safe to refresh
