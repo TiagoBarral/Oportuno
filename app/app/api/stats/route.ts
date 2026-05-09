@@ -4,11 +4,16 @@ import type { StatsResponse } from "@/app/types";
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const [totalCompanies, withEmail, withWebsite, withPhone] = await Promise.all([
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const [totalCompanies, withEmail, withWebsite, withPhone, newThisMonth] = await Promise.all([
       prisma.company.count(),
       prisma.company.count({ where: { email: { not: null } } }),
       prisma.company.count({ where: { hasWebsite: true } }),
       prisma.company.count({ where: { phoneNumber: { not: null } } }),
+      prisma.company.count({ where: { createdAt: { gte: startOfMonth } } }),
     ]);
 
     const response: StatsResponse = {
@@ -16,6 +21,7 @@ export async function GET(): Promise<NextResponse> {
       withEmail,
       withWebsite,
       withPhone,
+      newThisMonth,
       recentSearches: [],
     };
 

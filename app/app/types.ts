@@ -55,6 +55,7 @@ export interface StatsResponse {
   withEmail: number;
   withWebsite: number;
   withPhone: number;
+  newThisMonth: number;
   recentSearches?: RecentSearch[];
 }
 
