@@ -31,6 +31,7 @@ export async function GET(request: Request): Promise<NextResponse> {
   const categoriesParam     = searchParams.get("categories");
   const specialtiesParam    = searchParams.get("specialties");
   const companySizesParam   = searchParams.get("companySizes");
+  const nameParam           = searchParams.get("name");
 
   // Validate enum-like params before touching the DB.
   if (opportunityParam !== null && opportunityParam !== "") {
@@ -118,6 +119,10 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     // Global search: filter the full Company directory (case-insensitive).
     const where: Prisma.CompanyWhereInput = {};
+
+    if (nameParam !== null && nameParam !== "") {
+      where.name = { contains: nameParam, mode: "insensitive" };
+    }
 
     if (industryParam !== null && industryParam !== "") {
       where.industry = { equals: industryParam, mode: "insensitive" };

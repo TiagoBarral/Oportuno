@@ -107,6 +107,7 @@ function addCompanyFilterParams(
   params: URLSearchParams,
   currentFilters: NetworkingFilters,
   locationSelection: LocationSelection,
+  name?: string,
 ) {
   const municipalities = municipalityScopeFor(locationSelection);
   if (municipalities.length === 1) params.set("municipality", municipalities[0]);
@@ -116,6 +117,7 @@ function addCompanyFilterParams(
   if (currentFilters.companySizes.length > 0) params.set("companySizes", currentFilters.companySizes.join(","));
   if (currentFilters.hasWebsite)  params.set("hasWebsite", currentFilters.hasWebsite);
   if (currentFilters.hasEmail)    params.set("hasEmail", currentFilters.hasEmail);
+  if (name && name.trim())        params.set("name", name.trim());
 }
 
 const SESSION_KEY = "oportuno_networking_state";
@@ -202,6 +204,8 @@ export default function NetworkingView({
   const [contactedIds, setContactedIds] = useState<Set<string>>(new Set());
   const [openDropdown, setOpenDropdown] = useState<"categories" | "specialties" | "companySizes" | null>(null);
   const [advisorOpen, setAdvisorOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -222,6 +226,7 @@ export default function NetworkingView({
     currentPage: number,
     size?: number,
     currentLocationSelection = locationSelection,
+    currentSearchQuery = searchQuery,
   ) {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -234,7 +239,7 @@ export default function NetworkingView({
       const params = new URLSearchParams();
       params.set("page", String(currentPage));
       params.set("pageSize", String(effectiveSize));
-      addCompanyFilterParams(params, currentFilters, currentLocationSelection);
+      addCompanyFilterParams(params, currentFilters, currentLocationSelection, currentSearchQuery);
 
       const res = await fetch(`/api/companies?${params.toString()}`, { signal: controller.signal });
       const data: unknown = await res.json();
@@ -413,7 +418,7 @@ export default function NetworkingView({
         const params = new URLSearchParams();
         params.set("page", String(p));
         params.set("pageSize", String(EXPORT_PAGE_SIZE));
-        addCompanyFilterParams(params, currentFilters, currentLocationSelection);
+        addCompanyFilterParams(params, currentFilters, currentLocationSelection, searchQuery);
         return params;
       };
 
@@ -461,7 +466,7 @@ export default function NetworkingView({
         const params = new URLSearchParams();
         params.set("page",     String(p));
         params.set("pageSize", String(EXPORT_PAGE_SIZE));
-        addCompanyFilterParams(params, currentFilters, currentLocationSelection);
+        addCompanyFilterParams(params, currentFilters, currentLocationSelection, searchQuery);
         return params;
       };
 
@@ -531,6 +536,8 @@ export default function NetworkingView({
     filters.hasEmail !== "" ||
     filters.opportunity !== "" ||
     locationSelection.district !== "";
+
+  const showAdvisorPrompt = !hasActiveFilters && !searchQuery && !loading;
 
   const selectedList = Array.from(selectedCompanies.values());
   const emailCount = selectedList.filter(c => c.email !== null).length;
@@ -797,14 +804,45 @@ export default function NetworkingView({
               </div>
             </div>
 
-            {/* Advisor button */}
-            <button type="button" onClick={() => { setOpenDropdown(null); setAdvisorOpen(true); }}
+            {/* Name search */}
+            <div className="relative flex items-center">
+              <svg className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35m0 0A7.5 7.5 0 104.5 4.5a7.5 7.5 0 0012.15 12.15z"/>
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchQuery(value);
+                  if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                  searchDebounceRef.current = setTimeout(() => {
+                    void fetchCompanies(filters, 1, undefined, locationSelection, value);
+                  }, 300);
+                }}
+                placeholder="Pesquisar empresa..."
+                className="pl-8 pr-3 py-1.5 rounded-lg border border-gray-200 bg-gray-50 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors w-44"
+              />
+              {searchQuery && (
+                <button type="button" onClick={() => {
+                  setSearchQuery("");
+                  void fetchCompanies(filters, 1, undefined, locationSelection, "");
+                }} className="absolute right-2 text-gray-400 hover:text-gray-600">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Advisor button — hidden when the prompt card is visible */}
+            {!showAdvisorPrompt && <button type="button" onClick={() => { setOpenDropdown(null); setAdvisorOpen(true); }}
               className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
               </svg>
               Sugerir filtros
-            </button>
+            </button>}
 
           </div>
         </div>
@@ -858,13 +896,39 @@ export default function NetworkingView({
               })}
 
             <button type="button" onClick={handleClearFilters}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1">
+              className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
               Limpar filtros
             </button>
             <span className="ml-auto text-xs text-gray-500">{total} empresas encontradas</span>
+          </div>
+        )}
+
+        {showAdvisorPrompt && (
+          <div className="flex-shrink-0 mx-6 mt-4 mb-1 rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-5 flex items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+                </svg>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-blue-900">Não sabe por onde começar?</p>
+                <p className="text-xs text-blue-600 mt-0.5">Descreva o seu negócio e receba sugestões de filtros personalizadas com IA.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setOpenDropdown(null); setAdvisorOpen(true); }}
+              className="flex-shrink-0 flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 active:bg-blue-800 transition-colors shadow-sm"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+              </svg>
+              Sugerir filtros
+            </button>
           </div>
         )}
 

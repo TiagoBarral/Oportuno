@@ -66,6 +66,7 @@ interface CompanyDetailPanelProps {
   onEmailDraftChange: (draft: EmailDraft) => void;
   onGenerate: () => void;
   onSend: () => void;
+  onClose?: () => void;
   senderProfile: string;
   attachmentFilename: string | null;
   onSendProfileChange: (v: string) => void;
@@ -97,6 +98,7 @@ export default function CompanyDetailPanel({
   onEmailDraftChange,
   onGenerate,
   onSend,
+  onClose,
   senderProfile,
   attachmentFilename,
   onSendProfileChange,
@@ -137,6 +139,20 @@ export default function CompanyDetailPanel({
 
           {/* 1. Header card */}
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm px-6 py-5">
+            {onClose && (
+              <div className="flex justify-end mb-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  aria-label="Fechar painel"
+                  className="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </button>
+              </div>
+            )}
             <div className="flex items-start justify-between gap-4">
               <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-300">
                 <IconBuilding className="w-7 h-7" />

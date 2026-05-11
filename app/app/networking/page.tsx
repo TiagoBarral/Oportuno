@@ -182,6 +182,7 @@ function NetworkingContent() {
             onEmailDraftChange={handleEmailDraftChange}
             onGenerate={handleGenerate}
             onSend={handleSend}
+            onClose={() => setSelectedCompany(null)}
             senderProfile={localSenderProfile}
             attachmentFilename={attachmentFilename}
             onSendProfileChange={setLocalSenderProfile}
