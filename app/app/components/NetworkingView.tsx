@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import type { Company, NetworkingFilters, PaginatedResponse } from "../types";
+import type { Company, NetworkingFilters, PaginatedResponse, FilterSuggestion } from "../types";
 import { IconPaperPlane } from "./shared";
 import {
   DISTRICT_OPTIONS,
@@ -12,6 +12,7 @@ import {
 import { CATEGORIES } from "@/lib/categories";
 import { SPECIALTIES } from "@/lib/specialties";
 import { buildCsvString, buildExportFilename, triggerCsvDownload, CSV_EXPORT_LIMIT, EXPORT_PAGE_SIZE } from "./csvExport";
+import FilterAdvisorModal from "./FilterAdvisorModal";
 
 interface NetworkingViewProps {
   selectedCompany: Company | null;
@@ -42,9 +43,6 @@ function avatarColor(name: string): string {
 
 const FILTER_LABELS: Partial<Record<keyof NetworkingFilters, (v: string) => string>> = {
   municipality: (v) => `Concelho: ${v}`,
-  category: (v) => `Categoria: ${v}`,
-  specialty: (v) => `Especialidade: ${v}`,
-  companySize: (v) => `Dimensão: ${v}`,
   hasWebsite: (v) => v === "true" ? "Com website" : "Sem website",
   hasEmail: (v) => v === "true" ? "Com email" : "Sem email",
 };
@@ -76,9 +74,9 @@ function companyInitials(name: string): string {
 
 const EMPTY_FILTERS: NetworkingFilters = {
   municipality: "",
-  category: "",
-  specialty: "",
-  companySize: "",
+  categories: [],
+  specialties: [],
+  companySizes: [],
   opportunity: "",
   hasWebsite: "",
   hasEmail: "",
@@ -113,11 +111,50 @@ function addCompanyFilterParams(
   const municipalities = municipalityScopeFor(locationSelection);
   if (municipalities.length === 1) params.set("municipality", municipalities[0]);
   if (municipalities.length > 1) params.set("municipalities", municipalities.join(","));
-  if (currentFilters.category)    params.set("category", currentFilters.category);
-  if (currentFilters.specialty)   params.set("specialty", currentFilters.specialty);
-  if (currentFilters.companySize) params.set("companySize", currentFilters.companySize);
+  if (currentFilters.categories.length > 0)  params.set("categories", currentFilters.categories.join(","));
+  if (currentFilters.specialties.length > 0)  params.set("specialties", currentFilters.specialties.join(","));
+  if (currentFilters.companySizes.length > 0) params.set("companySizes", currentFilters.companySizes.join(","));
   if (currentFilters.hasWebsite)  params.set("hasWebsite", currentFilters.hasWebsite);
   if (currentFilters.hasEmail)    params.set("hasEmail", currentFilters.hasEmail);
+}
+
+const SESSION_KEY = "oportuno_networking_state";
+
+interface PersistedState {
+  filters: NetworkingFilters;
+  locationSelection: LocationSelection;
+  selectedCompanies: [string, Company][];
+}
+
+function loadPersistedState(): PersistedState | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as PersistedState;
+  } catch {
+    return null;
+  }
+}
+
+function savePersistedState(
+  filters: NetworkingFilters,
+  locationSelection: LocationSelection,
+  selectedCompanies: Map<string, Company>,
+) {
+  try {
+    const state: PersistedState = {
+      filters,
+      locationSelection,
+      selectedCompanies: [...selectedCompanies.entries()],
+    };
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(state));
+  } catch {
+    // sessionStorage unavailable — silent fail
+  }
+}
+
+function clearPersistedState() {
+  try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
 }
 
 function buildPageWindow(current: number, total: number): (number | "...")[] {
@@ -134,30 +171,51 @@ function buildPageWindow(current: number, total: number): (number | "...")[] {
   return pages;
 }
 
+const COMPANY_SIZE_OPTIONS = ["Pequena", "Média", "Grande", "Desconhecida"];
+
 export default function NetworkingView({
   selectedCompany,
   onSelectCompany,
   onContactar,
   initialFilters,
 }: NetworkingViewProps) {
-  const [filters, setFilters] = useState<NetworkingFilters>({
-    ...EMPTY_FILTERS,
-    ...initialFilters,
+  const [filters, setFilters] = useState<NetworkingFilters>(() => {
+    const saved = loadPersistedState();
+    return saved?.filters ?? { ...EMPTY_FILTERS, ...initialFilters };
   });
-  const [locationSelection, setLocationSelection] = useState<LocationSelection>(() =>
-    initialLocationSelection(initialFilters?.municipality),
-  );
+  const [locationSelection, setLocationSelection] = useState<LocationSelection>(() => {
+    const saved = loadPersistedState();
+    return saved?.locationSelection ?? initialLocationSelection(initialFilters?.municipality);
+  });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCompanies, setSelectedCompanies] = useState<Map<string, Company>>(new Map());
+  const [selectedCompanies, setSelectedCompanies] = useState<Map<string, Company>>(() => {
+    const saved = loadPersistedState();
+    return saved ? new Map(saved.selectedCompanies) : new Map();
+  });
   const [exportLoading, setExportLoading] = useState(false);
   const [selectAllLoading, setSelectAllLoading] = useState(false);
   const [contactedIds, setContactedIds] = useState<Set<string>>(new Set());
+  const [openDropdown, setOpenDropdown] = useState<"categories" | "specialties" | "companySizes" | null>(null);
+  const [advisorOpen, setAdvisorOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    if (openDropdown === null) return;
+    function handleMouseDown(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpenDropdown(null);
+      }
+    }
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [openDropdown]);
 
   async function fetchCompanies(
     currentFilters: NetworkingFilters,
@@ -215,8 +273,23 @@ export default function NetworkingView({
     const newFilters: NetworkingFilters = {
       ...filters,
       [key]: value,
-      ...(key === "category" ? { specialty: "" } : {}),
     };
+    setFilters(newFilters);
+    setSelectedCompanies(new Map());
+    void fetchCompanies(newFilters, 1);
+  }
+
+  function handleToggleFilter(field: "categories" | "specialties" | "companySizes", value: string) {
+    const current = filters[field];
+    const next = current.includes(value)
+      ? current.filter((v) => v !== value)
+      : [...current, value];
+    const newFilters: NetworkingFilters = { ...filters, [field]: next };
+    // When a category is removed, drop any specialties that no longer belong to a selected category
+    if (field === "categories" && current.includes(value)) {
+      const availableSpecialties = new Set(next.flatMap((cat) => SPECIALTIES[cat] ?? []));
+      newFilters.specialties = filters.specialties.filter((s) => availableSpecialties.has(s));
+    }
     setFilters(newFilters);
     setSelectedCompanies(new Map());
     void fetchCompanies(newFilters, 1);
@@ -260,7 +333,7 @@ export default function NetworkingView({
     void fetchCompanies(newFilters, 1, undefined, EMPTY_LOCATION_SELECTION);
   }
 
-  function handleRemoveChip(key: keyof NetworkingFilters) {
+  function handleRemoveChip(key: Exclude<keyof NetworkingFilters, "categories" | "specialties" | "companySizes">) {
     if (key === "municipality") {
       handleClearLocationFilter();
       return;
@@ -268,7 +341,6 @@ export default function NetworkingView({
     const newFilters: NetworkingFilters = {
       ...filters,
       [key]: "",
-      ...(key === "category" ? { specialty: "" } : {}),
     };
     setFilters(newFilters);
     setSelectedCompanies(new Map());
@@ -276,6 +348,7 @@ export default function NetworkingView({
   }
 
   function handleClearFilters() {
+    clearPersistedState();
     setFilters(EMPTY_FILTERS);
     setLocationSelection(EMPTY_LOCATION_SELECTION);
     setSelectedCompanies(new Map());
@@ -305,6 +378,18 @@ export default function NetworkingView({
       }
       return next;
     });
+  }
+
+  function handleApplyAdvisorSuggestion(suggestion: FilterSuggestion) {
+    const newFilters: NetworkingFilters = {
+      ...filters,
+      categories: suggestion.filters.categories,
+      specialties: suggestion.filters.specialties,
+      companySizes: suggestion.filters.companySizes,
+    };
+    setFilters(newFilters);
+    setSelectedCompanies(new Map());
+    void fetchCompanies(newFilters, 1);
   }
 
   const allCurrentPageSelected =
@@ -404,9 +489,14 @@ export default function NetworkingView({
   }
 
   useEffect(() => {
-    void fetchCompanies(filters, 1);
+    void fetchCompanies(filters, 1, undefined, locationSelection);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Persist state to sessionStorage whenever it changes
+  useEffect(() => {
+    savePersistedState(filters, locationSelection, selectedCompanies);
+  }, [filters, locationSelection, selectedCompanies]);
 
   useEffect(() => {
     fetch("/api/contacted")
@@ -434,7 +524,12 @@ export default function NetworkingView({
         : "";
 
   const hasActiveFilters =
-    Object.entries(filters).some(([key, value]) => key !== "municipality" && value !== "") ||
+    filters.categories.length > 0 ||
+    filters.specialties.length > 0 ||
+    filters.companySizes.length > 0 ||
+    filters.hasWebsite !== "" ||
+    filters.hasEmail !== "" ||
+    filters.opportunity !== "" ||
     locationSelection.district !== "";
 
   const selectedList = Array.from(selectedCompanies.values());
@@ -443,6 +538,11 @@ export default function NetworkingView({
   const websiteCount = selectedList.filter(c => c.hasWebsite).length;
   const noWebsiteCount = selectedList.length - websiteCount;
   const hasNoEmailSelected = noEmailCount > 0 && selectedCompanies.size > 0;
+
+  // Compute available specialties from selected categories
+  const availableSpecialties = filters.categories
+    .flatMap((cat) => SPECIALTIES[cat] ?? [])
+    .filter((s, i, arr) => arr.indexOf(s) === i);
 
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -529,7 +629,7 @@ export default function NetworkingView({
         </div>
 
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2" ref={dropdownRef}>
 
             <select
               value={locationSelection.district}
@@ -563,27 +663,109 @@ export default function NetworkingView({
               ))}
             </select>
 
-            <select name="category" value={filters.category}
-              onChange={(e) => handleInstantFilterChange("category", e.target.value)}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
-              <option value="">Categoria</option>
-              {CATEGORIES.map((cat) => <option key={cat} value={cat}>{cat}</option>)}
-            </select>
+            {/* Categorias multi-select dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === "categories" ? null : "categories")}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  filters.categories.length > 0
+                    ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
+                    : "border-gray-200 bg-gray-50 text-gray-900 hover:border-blue-300"
+                }`}>
+                {filters.categories.length > 0 ? `Categorias (${filters.categories.length})` : "Categorias"}
+              </button>
+              {openDropdown === "categories" && (
+                <div className="absolute z-20 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-2 min-w-[180px]">
+                  <div className="max-h-48 overflow-y-auto flex flex-col gap-0.5">
+                    {CATEGORIES.map((cat) => (
+                      <label key={cat} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm text-gray-800">
+                        <input
+                          type="checkbox"
+                          checked={filters.categories.includes(cat)}
+                          onChange={() => handleToggleFilter("categories", cat)}
+                          className="rounded border-gray-300"
+                        />
+                        {cat}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
-            <select name="specialty" value={filters.specialty}
-              disabled={!filters.category}
-              onChange={(e) => handleInstantFilterChange("specialty", e.target.value)}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
-              <option value="">Especialidade</option>
-              {(SPECIALTIES[filters.category] ?? []).map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            {/* Especialidades multi-select dropdown */}
+            <div className="relative">
+              {filters.categories.length === 0 ? (
+                <button
+                  type="button"
+                  disabled
+                  className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 opacity-40 cursor-not-allowed">
+                  Especialidade
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setOpenDropdown(openDropdown === "specialties" ? null : "specialties")}
+                    className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                      filters.specialties.length > 0
+                        ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
+                        : "border-gray-200 bg-gray-50 text-gray-900 hover:border-blue-300"
+                    }`}>
+                    {filters.specialties.length > 0 ? `Especialidade (${filters.specialties.length})` : "Especialidade"}
+                  </button>
+                  {openDropdown === "specialties" && (
+                    <div className="absolute z-20 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-2 min-w-[180px]">
+                      <div className="max-h-48 overflow-y-auto flex flex-col gap-0.5">
+                        {availableSpecialties.map((s) => (
+                          <label key={s} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm text-gray-800">
+                            <input
+                              type="checkbox"
+                              checked={filters.specialties.includes(s)}
+                              onChange={() => handleToggleFilter("specialties", s)}
+                              className="rounded border-gray-300"
+                            />
+                            {s}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
 
-            <select name="companySize" value={filters.companySize}
-              onChange={(e) => handleInstantFilterChange("companySize", e.target.value)}
-              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-colors">
-              <option value="">Dimensão</option>
-              {["Pequena", "Média", "Grande", "Desconhecida"].map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            {/* Dimensão multi-select dropdown */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setOpenDropdown(openDropdown === "companySizes" ? null : "companySizes")}
+                className={`rounded-lg border px-3 py-1.5 text-sm transition-colors ${
+                  filters.companySizes.length > 0
+                    ? "bg-blue-50 border-blue-300 text-blue-700 font-medium"
+                    : "border-gray-200 bg-gray-50 text-gray-900 hover:border-blue-300"
+                }`}>
+                {filters.companySizes.length > 0 ? `Dimensão (${filters.companySizes.length})` : "Dimensão"}
+              </button>
+              {openDropdown === "companySizes" && (
+                <div className="absolute z-20 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg p-2 min-w-[180px]">
+                  <div className="max-h-48 overflow-y-auto flex flex-col gap-0.5">
+                    {COMPANY_SIZE_OPTIONS.map((s) => (
+                      <label key={s} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer text-sm text-gray-800">
+                        <input
+                          type="checkbox"
+                          checked={filters.companySizes.includes(s)}
+                          onChange={() => handleToggleFilter("companySizes", s)}
+                          className="rounded border-gray-300"
+                        />
+                        {s}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center">
               <span className="text-xs text-gray-500 mr-2">Website</span>
@@ -615,6 +797,15 @@ export default function NetworkingView({
               </div>
             </div>
 
+            {/* Advisor button */}
+            <button type="button" onClick={() => { setOpenDropdown(null); setAdvisorOpen(true); }}
+              className="flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100 transition-colors">
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z"/>
+              </svg>
+              Sugerir filtros
+            </button>
+
           </div>
         </div>
 
@@ -627,19 +818,45 @@ export default function NetworkingView({
                   className="ml-0.5 hover:text-blue-900 transition-colors">×</button>
               </span>
             )}
-            {(Object.entries(filters) as [keyof NetworkingFilters, string][])
-              .filter(([key, value]) => key !== "municipality" && value !== "")
-              .map(([key, value]) => {
+
+            {/* Array field chips */}
+            {filters.categories.map((cat) => (
+              <span key={`cat-${cat}`} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                Categoria: {cat}
+                <button type="button" onClick={() => handleToggleFilter("categories", cat)}
+                  className="ml-0.5 hover:text-blue-900 transition-colors">×</button>
+              </span>
+            ))}
+            {filters.specialties.map((s) => (
+              <span key={`spec-${s}`} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                Especialidade: {s}
+                <button type="button" onClick={() => handleToggleFilter("specialties", s)}
+                  className="ml-0.5 hover:text-blue-900 transition-colors">×</button>
+              </span>
+            ))}
+            {filters.companySizes.map((sz) => (
+              <span key={`size-${sz}`} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
+                Dimensão: {sz}
+                <button type="button" onClick={() => handleToggleFilter("companySizes", sz)}
+                  className="ml-0.5 hover:text-blue-900 transition-colors">×</button>
+              </span>
+            ))}
+
+            {/* String field chips */}
+            {(["hasWebsite", "hasEmail", "opportunity"] as const)
+              .filter((key) => filters[key] !== "")
+              .map((key) => {
                 const labelFn = FILTER_LABELS[key];
                 if (!labelFn) return null;
                 return (
                   <span key={key} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                    {labelFn(value)}
+                    {labelFn(filters[key] as string)}
                     <button type="button" onClick={() => handleRemoveChip(key)}
                       className="ml-0.5 hover:text-blue-900 transition-colors">×</button>
                   </span>
                 );
               })}
+
             <button type="button" onClick={handleClearFilters}
               className="text-xs text-gray-400 hover:text-gray-600 transition-colors flex items-center gap-1">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -794,6 +1011,13 @@ export default function NetworkingView({
         </div>
 
       </main>
+
+      {advisorOpen && (
+        <FilterAdvisorModal
+          onApply={(suggestion) => { handleApplyAdvisorSuggestion(suggestion); }}
+          onClose={() => setAdvisorOpen(false)}
+        />
+      )}
     </div>
   );
 }
