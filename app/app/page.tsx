@@ -203,101 +203,139 @@ export default function Home() {
             </div>
           </section>
 
-          <section className="flex flex-col gap-5">
-            <h2 className="text-lg font-bold text-gray-900">Como funciona</h2>
-            <div className="flex items-stretch">
+          <section className="flex flex-col gap-8">
+            {/* Section header */}
+            <div className="flex flex-col items-center text-center gap-2">
+              <h2 className="text-3xl font-extrabold text-gray-900">Como funciona</h2>
+              <p className="text-sm text-gray-500 leading-relaxed max-w-lg">
+                Em apenas 3 passos, encontre, selecione e contacte as empresas certas para fazer o seu negócio crescer.
+              </p>
+            </div>
 
-              {/* Step 1 */}
-              <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-4 flex flex-col items-center text-center gap-3">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
-                    <IconSliders className="w-9 h-9 text-blue-700" />
+            {/* Step cards */}
+            <div className="flex items-stretch gap-0">
+
+              {/* Step 1 — blue */}
+              <div className="flex-1 bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col">
+                <div className="h-1 bg-amber-400"/>
+                <div className="flex flex-col items-center text-center gap-4 p-6 flex-1">
+                  <div className="relative mt-2">
+                    <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center">
+                      <IconSliders className="w-10 h-10 text-amber-600" />
+                    </div>
+                    <span className="absolute -top-1 -left-1 w-7 h-7 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow">1</span>
                   </div>
-                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow-sm">1</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">Filtre empresas</p>
-                  <p className="text-xs text-gray-500 leading-relaxed mt-1">Use os filtros no Networking para encontrar as melhores oportunidades.</p>
+                  <div>
+                    <p className="text-base font-bold text-gray-900">Filtre empresas</p>
+                    <p className="text-sm text-gray-500 leading-relaxed mt-1">Use os filtros no Networking para encontrar as melhores oportunidades para o seu negócio.</p>
+                  </div>
+                  <div className="w-full rounded-xl bg-amber-50 px-4 py-3 flex flex-col gap-1.5 mt-auto">
+                    {["Filtre por localização", "Setor de atividade", "Tamanho da empresa"].map((item) => (
+                      <div key={item} className="flex items-center gap-2 text-sm text-blue-700">
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Arrow */}
-              <div className="flex-shrink-0 px-2 flex items-center">
+              <div className="flex-shrink-0 w-12 flex items-center justify-center">
                 <svg width="40" height="16" viewBox="0 0 40 16" fill="none">
                   <line x1="0" y1="8" x2="32" y2="8" stroke="#93C5FD" strokeWidth="1.5" strokeDasharray="4 3"/>
                   <path d="M32 4L38 8L32 12" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                 </svg>
               </div>
 
-              {/* Step 2 */}
-              <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-4 flex flex-col items-center text-center gap-3">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
-                    <IconUsers className="w-9 h-9 text-blue-700" />
+              {/* Step 2 — blue */}
+              <div className="flex-1 bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col">
+                <div className="h-1 bg-amber-400"/>
+                <div className="flex flex-col items-center text-center gap-4 p-6 flex-1">
+                  <div className="relative mt-2">
+                    <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center">
+                      <IconUsers className="w-10 h-10 text-amber-600" />
+                    </div>
+                    <span className="absolute -top-1 -left-1 w-7 h-7 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow">2</span>
                   </div>
-                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow-sm">2</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">Selecione oportunidades</p>
-                  <p className="text-xs text-gray-500 leading-relaxed mt-1">Escolha as empresas mais relevantes para o seu serviço.</p>
+                  <div>
+                    <p className="text-base font-bold text-gray-900">Selecione oportunidades</p>
+                    <p className="text-sm text-gray-500 leading-relaxed mt-1">Escolha as empresas mais relevantes para o seu serviço e adicione às suas oportunidades.</p>
+                  </div>
+                  <div className="w-full rounded-xl bg-amber-50 px-4 py-3 flex flex-col gap-1.5 mt-auto">
+                    {["Dados completos e atualizados", "Informações de contacto", "Histórico de interações"].map((item) => (
+                      <div key={item} className="flex items-center gap-2 text-sm text-blue-700">
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
               {/* Arrow */}
-              <div className="flex-shrink-0 px-2 flex items-center">
+              <div className="flex-shrink-0 w-12 flex items-center justify-center">
                 <svg width="40" height="16" viewBox="0 0 40 16" fill="none">
                   <line x1="0" y1="8" x2="32" y2="8" stroke="#93C5FD" strokeWidth="1.5" strokeDasharray="4 3"/>
                   <path d="M32 4L38 8L32 12" stroke="#93C5FD" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
                 </svg>
               </div>
 
-              {/* Step 3 */}
-              <div className="flex-1 bg-white rounded-2xl border border-gray-200 p-4 flex flex-col items-center text-center gap-3">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-2xl bg-blue-100 flex items-center justify-center">
-                    <IconEnvelope className="w-9 h-9 text-blue-700" />
+              {/* Step 3 — blue */}
+              <div className="flex-1 bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col">
+                <div className="h-1 bg-amber-400"/>
+                <div className="flex flex-col items-center text-center gap-4 p-6 flex-1">
+                  <div className="relative mt-2">
+                    <div className="w-20 h-20 rounded-full bg-amber-100 flex items-center justify-center">
+                      <IconEnvelope className="w-10 h-10 text-amber-600" />
+                    </div>
+                    <span className="absolute -top-1 -left-1 w-7 h-7 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow">3</span>
                   </div>
-                  <span className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-blue-800 text-white text-xs font-bold flex items-center justify-center shadow-sm">3</span>
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">Contacte em massa</p>
-                  <p className="text-xs text-gray-500 leading-relaxed mt-1">Gere e envie emails personalizados com um só clique.</p>
+                  <div>
+                    <p className="text-base font-bold text-gray-900">Contacte em massa</p>
+                    <p className="text-sm text-gray-500 leading-relaxed mt-1">Gere e envie emails personalizados para várias empresas com apenas um clique.</p>
+                  </div>
+                  <div className="w-full rounded-xl bg-amber-50 px-4 py-3 flex flex-col gap-1.5 mt-auto">
+                    {["Templates personalizados", "Envio seguro e automatizado", "Acompanhe os resultados"].map((item) => (
+                      <div key={item} className="flex items-center gap-2 text-sm text-blue-700">
+                        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        {item}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
 
             </div>
+
           </section>
 
           <section className="flex flex-col gap-5">
             <h2 className="text-lg font-bold text-gray-900">Ferramentas</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-3">
 
-              <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <IconSparkle className="w-9 h-9 text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Criar template de email</p>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">Crie emails personalizados em português europeu para a sua base de empresas.</p>
-                  </div>
+              <div className="bg-white border-l-4 border-l-slate-700 border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-5">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                  <IconSparkle className="w-6 h-6 text-slate-600" />
                 </div>
-                <Link href="/networking" className="text-sm text-blue-600 font-medium hover:underline flex items-center gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">Criar template de email</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Crie emails personalizados em português europeu para a sua base de empresas.</p>
+                </div>
+                <Link href="/networking" className="flex-shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
                   Criar template <IconArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-5 flex flex-col gap-3">
-                <div className="flex items-start gap-4">
-                  <div className="w-16 h-16 rounded-2xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <IconClock className="w-9 h-9 text-gray-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-800">Ver histórico de emails</p>
-                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">Consulte todos os emails enviados pela plataforma e o seu estado.</p>
-                  </div>
+              <div className="bg-white border-l-4 border-l-slate-700 border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-5">
+                <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0">
+                  <IconClock className="w-6 h-6 text-slate-600" />
                 </div>
-                <Link href="/historico" className="text-sm text-blue-600 font-medium hover:underline flex items-center gap-1">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-900">Ver histórico de emails</p>
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">Consulte todos os emails enviados pela plataforma e o seu estado.</p>
+                </div>
+                <Link href="/historico" className="flex-shrink-0 flex items-center gap-1.5 rounded-lg border border-slate-300 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors">
                   Ver histórico <IconArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
