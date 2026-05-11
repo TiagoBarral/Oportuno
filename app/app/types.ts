@@ -26,12 +26,22 @@ export interface GeneratedEmail {
 
 export interface NetworkingFilters {
   municipality: string;
-  category: string;
-  specialty: string;
-  companySize: string;
+  categories: string[];
+  specialties: string[];
+  companySizes: string[];
   opportunity: Opportunity | "";
   hasWebsite: "true" | "false" | "";
   hasEmail: "true" | "false" | "";
+}
+
+export interface FilterSuggestion {
+  label: string;
+  explanation: string;
+  filters: {
+    categories: string[];
+    specialties: string[];
+    companySizes: string[];
+  };
 }
 
 export interface PaginatedResponse<T> {

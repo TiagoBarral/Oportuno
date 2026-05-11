@@ -56,7 +56,7 @@ function NetworkingContent() {
   const municipalityParam = searchParams.get("municipality");
 
   const initialFilters: Partial<NetworkingFilters> = {};
-  if (categoryParam)    initialFilters.category    = categoryParam;
+  if (categoryParam)    initialFilters.categories   = [categoryParam];
   if (municipalityParam) initialFilters.municipality = municipalityParam;
 
   // Stable key derived from URL params — forces NetworkingView remount when

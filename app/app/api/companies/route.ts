@@ -10,23 +10,27 @@ const VALID_OPPORTUNITIES = new Set<string>(
 );
 const VALID_CATEGORIES = new Set<string>(CATEGORIES);
 const ALL_SPECIALTIES = new Set<string>(Object.values(SPECIALTIES).flat());
+const VALID_SIZES = new Set<string>(["Pequena", "Média", "Grande", "Desconhecida"]);
 
 export async function GET(request: Request): Promise<NextResponse> {
   const { searchParams } = new URL(request.url);
 
-  const jobIdParam        = searchParams.get("jobId");
-  const industryParam     = searchParams.get("industry");
-  const locationParam     = searchParams.get("location");
-  const municipalityParam = searchParams.get("municipality");
+  const jobIdParam          = searchParams.get("jobId");
+  const industryParam       = searchParams.get("industry");
+  const locationParam       = searchParams.get("location");
+  const municipalityParam   = searchParams.get("municipality");
   const municipalitiesParam = searchParams.get("municipalities");
-  const categoryParam     = searchParams.get("category");
-  const specialtyParam    = searchParams.get("specialty");
-  const opportunityParam  = searchParams.get("opportunity");
-  const companySizeParam  = searchParams.get("companySize");
-  const hasWebsiteParam   = searchParams.get("hasWebsite");
-  const hasEmailParam     = searchParams.get("hasEmail");
-  const pageParam         = searchParams.get("page");
-  const pageSizeParam     = searchParams.get("pageSize");
+  const categoryParam       = searchParams.get("category");
+  const specialtyParam      = searchParams.get("specialty");
+  const opportunityParam    = searchParams.get("opportunity");
+  const companySizeParam    = searchParams.get("companySize");
+  const hasWebsiteParam     = searchParams.get("hasWebsite");
+  const hasEmailParam       = searchParams.get("hasEmail");
+  const pageParam           = searchParams.get("page");
+  const pageSizeParam       = searchParams.get("pageSize");
+  const categoriesParam     = searchParams.get("categories");
+  const specialtiesParam    = searchParams.get("specialties");
+  const companySizesParam   = searchParams.get("companySizes");
 
   // Validate enum-like params before touching the DB.
   if (opportunityParam !== null && opportunityParam !== "") {
@@ -51,6 +55,49 @@ export async function GET(request: Request): Promise<NextResponse> {
     if (!ALL_SPECIALTIES.has(specialtyParam)) {
       return NextResponse.json(
         { error: "specialty is not a recognised value" },
+        { status: 400 },
+      );
+    }
+  }
+
+  // Plural multi-value params: split, trim, and validate each element.
+  const categoryList = (categoriesParam ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  for (const c of categoryList) {
+    if (!VALID_CATEGORIES.has(c)) {
+      return NextResponse.json(
+        { error: `Invalid category value: "${c}". Must be one of: ${CATEGORIES.join(", ")}` },
+        { status: 400 },
+      );
+    }
+  }
+
+  const specialtyList = (specialtiesParam ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  for (const s of specialtyList) {
+    if (!ALL_SPECIALTIES.has(s)) {
+      return NextResponse.json(
+        { error: `Invalid specialty value: "${s}"` },
+        { status: 400 },
+      );
+    }
+  }
+
+  const companySizeList = (companySizesParam ?? "")
+    .split(",")
+    .map((v) => v.trim())
+    .filter(Boolean);
+
+  for (const size of companySizeList) {
+    if (!VALID_SIZES.has(size)) {
+      return NextResponse.json(
+        { error: `companySizes contains invalid value: "${size}". Must be one of: ${[...VALID_SIZES].join(", ")}` },
         { status: 400 },
       );
     }
@@ -91,16 +138,38 @@ export async function GET(request: Request): Promise<NextResponse> {
       where.municipality = { equals: municipalityParam, mode: "insensitive" };
     }
 
-    if (categoryParam !== null && categoryParam !== "") {
-      where.category = { equals: categoryParam, mode: "insensitive" };
+    // Multi-value filters: prefer plural param; fall back to singular for backward compatibility.
+    const effectiveCategoryList =
+      categoryList.length > 0
+        ? categoryList
+        : categoryParam !== null && categoryParam !== ""
+          ? [categoryParam]
+          : [];
+
+    if (effectiveCategoryList.length > 0) {
+      where.category = { in: effectiveCategoryList, mode: "insensitive" };
     }
 
-    if (specialtyParam !== null && specialtyParam !== "") {
-      where.specialty = { equals: specialtyParam, mode: "insensitive" };
+    const effectiveSpecialtyList =
+      specialtyList.length > 0
+        ? specialtyList
+        : specialtyParam !== null && specialtyParam !== ""
+          ? [specialtyParam]
+          : [];
+
+    if (effectiveSpecialtyList.length > 0) {
+      where.specialty = { in: effectiveSpecialtyList, mode: "insensitive" };
     }
 
-    if (companySizeParam !== null && companySizeParam !== "") {
-      where.companySize = { equals: companySizeParam, mode: "insensitive" };
+    const effectiveCompanySizeList =
+      companySizeList.length > 0
+        ? companySizeList
+        : companySizeParam !== null && companySizeParam !== ""
+          ? [companySizeParam]
+          : [];
+
+    if (effectiveCompanySizeList.length > 0) {
+      where.companySize = { in: effectiveCompanySizeList, mode: "insensitive" };
     }
 
     if (opportunityParam !== null && opportunityParam !== "") {
